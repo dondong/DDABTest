@@ -1,5 +1,5 @@
 //
-//  DDLibrary.h
+//  DDStaticLibrary.h
 //  DDToolKit
 //
 //  Created by dondong on 2021/9/9.
@@ -10,7 +10,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface DDLibrary : NSObject
+@interface DDStaticLibrary : NSObject
 @property(nonatomic,strong,readonly,nonnull) NSString *path;
 @property(nonatomic,strong,readonly,nonnull) NSArray<NSString *> *architectures;
 @property(nonatomic,strong,readonly,nonnull) NSArray<NSString *> *ofilePathes;

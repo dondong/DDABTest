@@ -12,20 +12,27 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface DDIRModule : NSObject
-@property(nonatomic,strong,readonly,nonnull) NSString *path;
+@interface DDIRModuleData : NSObject
 @property(nonatomic,strong,readonly,nonnull) NSArray<DDIRStringVariable *> *stringList;
 @property(nonatomic,strong,readonly,nonnull) NSArray<DDIRObjCClass *> *objcClassList;
 @property(nonatomic,strong,readonly,nonnull) NSArray<DDIRObjCCategory *> *objcCategoryList;
 @property(nonatomic,strong,readonly,nonnull) NSArray<DDIRFunction *> *functionList;
+@end
+
+@interface DDIRModule : NSObject
+@property(nonatomic,strong,readonly,nonnull) NSString *path;
 + (nullable instancetype)moduleFromLLPath:(nonnull NSString *)path;
-// change
-- (void)changeClassNameFrom:(nonnull NSString *)oldClassName to:(nonnull NSString *)newClassName;
-- (void)addEmptyClass:(nonnull NSString *)className;
-- (void)addEmptyCategory:(nonnull NSString *)categoryName toClass:(nonnull NSString *)className;
-- (void)moveClass:(nonnull NSString *)className to:(nonnull NSString *)section;
+- (nullable DDIRModuleData *)getData;
+
 - (void)executeChangesWithBlock:(void (^_Nullable)(DDIRModule * _Nullable module))block;
 - (void)executeChangesWithSavePath:(nonnull NSString *)savePath block:(void (^_Nullable)(DDIRModule * _Nullable module))block;
+// change
+- (void)addEmptyClass:(nonnull NSString *)className;
+- (void)addEmptyCategory:(nonnull NSString *)categoryName toClass:(nonnull NSString *)className;
+- (void)replaceObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName;
+- (void)moveClass:(nonnull NSString *)className to:(nonnull NSString *)section;
+- (void)replaceCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName;
+- (void)moveCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className to:(nonnull NSString *)section;
 @end
 
 NS_ASSUME_NONNULL_END

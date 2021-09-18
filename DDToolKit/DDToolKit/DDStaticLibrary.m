@@ -1,13 +1,13 @@
 //
-//  DDLibrary.m
+//  DDStaticLibrary.m
 //  DDToolKit
 //
 //  Created by dondong on 2021/9/9.
 //
 
-#import "DDLibrary.h"
+#import "DDStaticLibrary.h"
 
-@interface DDLibrary()
+@interface DDStaticLibrary()
 @property(nonatomic,strong,readwrite,nonnull) NSString *path;
 @property(nonatomic,strong,readwrite,nonnull) NSString *tmpPath;
 @property(nonatomic,strong,readwrite,nonnull) NSArray<NSString *> *architectures;
@@ -17,10 +17,10 @@
 @property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRObjCCategory *> *categoryList;
 @end
 
-@implementation DDLibrary
+@implementation DDStaticLibrary
 + (nullable instancetype)libraryFromPath:(nonnull NSString *)path tempDir:(nonnull NSString *)tempDir
 {
-    DDLibrary *library = [[self alloc] init];
+    DDStaticLibrary *library = [[self alloc] init];
     library.path = path;
     if (NO == [[NSFileManager defaultManager] fileExistsAtPath:tempDir]) {
         [[NSFileManager defaultManager] createDirectoryAtPath:tempDir withIntermediateDirectories:YES attributes:nil error:NULL];
@@ -35,20 +35,28 @@
     NSString *archStrPath = [library.tmpPath stringByAppendingPathComponent:@"arch.txt"];
     system([[NSString stringWithFormat:@"lipo -info %@ > %@", path, archStrPath] cStringUsingEncoding:NSUTF8StringEncoding]);
     NSString *archStr = [NSString stringWithContentsOfFile:archStrPath encoding:NSUTF8StringEncoding error:NULL];
-    for (NSString *a in [[[archStr componentsSeparatedByString:@" are:"] lastObject] componentsSeparatedByString:@" "]) {
-        NSString *v = [a stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-        if (v.length > 0) {
-            [architectures addObject:v];
+    if ([archStr containsString:@" are:"]) {
+        for (NSString *a in [[[archStr componentsSeparatedByString:@" are:"] lastObject] componentsSeparatedByString:@" "]) {
+            NSString *v = [a stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+            if (v.length > 0) {
+                [architectures addObject:v];
+            }
         }
+    } else {
+        [architectures addObject:[[[archStr componentsSeparatedByString:@"is architecture:"] lastObject] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]]];
     }
     library.architectures = [NSArray arrayWithArray:architectures];
     [[NSFileManager defaultManager] removeItemAtPath:archStrPath error:NULL];
     
-    NSString *outputLibraryPath = [library.tmpPath stringByAppendingPathComponent:library.path.lastPathComponent];
-    NSString *arch = [library.architectures containsObject:@"arm64"] ? @"arm64" : [architectures lastObject];
-    system([[NSString stringWithFormat:@"lipo -thin %@ %@ -output %@", arch, library.path, outputLibraryPath] cStringUsingEncoding:NSUTF8StringEncoding]);
-    system([[NSString stringWithFormat:@"tar -xf %@ -C %@", outputLibraryPath, library.tmpPath] cStringUsingEncoding:NSUTF8StringEncoding]);
-    [[NSFileManager defaultManager] removeItemAtPath:outputLibraryPath error:NULL];
+    if (architectures.count > 1) {
+        NSString *outputLibraryPath = [library.tmpPath stringByAppendingPathComponent:library.path.lastPathComponent];
+        NSString *arch = [library.architectures containsObject:@"arm64"] ? @"arm64" : [architectures lastObject];
+        system([[NSString stringWithFormat:@"lipo -thin %@ %@ -output %@", arch, library.path, outputLibraryPath] cStringUsingEncoding:NSUTF8StringEncoding]);
+        system([[NSString stringWithFormat:@"tar -xf %@ -C %@", outputLibraryPath, library.tmpPath] cStringUsingEncoding:NSUTF8StringEncoding]);
+        [[NSFileManager defaultManager] removeItemAtPath:outputLibraryPath error:NULL];
+    } else {
+        system([[NSString stringWithFormat:@"tar -xf %@ -C %@", path, library.tmpPath] cStringUsingEncoding:NSUTF8StringEncoding]);
+    }
     
     NSMutableArray *moduleList = [[NSMutableArray alloc] init];
     for (NSString *p in [[NSFileManager defaultManager] subpathsAtPath:library.tmpPath]) {
@@ -71,8 +79,9 @@
     NSMutableArray *classList = [[NSMutableArray alloc] init];
     NSMutableArray *categoryList = [[NSMutableArray alloc] init];
     for (DDIRModule *module in library.moduleList) {
-        [classList addObjectsFromArray:module.objcClassList];
-        [categoryList addObjectsFromArray:module.objcCategoryList];
+        DDIRModuleData *data = [module getData];
+        [classList addObjectsFromArray:data.objcClassList];
+        [categoryList addObjectsFromArray:data.objcCategoryList];
     }
     library.classList = [NSArray arrayWithArray:classList];
     library.categoryList = [NSArray arrayWithArray:categoryList];

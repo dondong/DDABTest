@@ -25,6 +25,9 @@ using namespace llvm;
 @interface DDIRModule()
 @property(nonatomic,assign) Module *module;
 @property(nonatomic,strong,readwrite,nonnull) NSString *path;
+@end
+
+@interface DDIRModuleData()
 @property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRStringVariable *> *stringList;
 @property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRObjCClass *> *objcClassList;
 @property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRObjCCategory *> *objcCategoryList;
@@ -40,9 +43,23 @@ using namespace llvm;
     if (NULL == ptr) {
         return nil;
     }
+    ptr.release();
     
     DDIRModule *module = [[DDIRModule alloc] init];
     module.path = path;
+    return module;
+}
+
+- (nullable DDIRModuleData *)getData
+{
+    LLVMContext context;
+    SMDiagnostic err;
+    std::unique_ptr<Module> ptr = parseAssemblyFile([self.path cStringUsingEncoding:NSUTF8StringEncoding], err, context);
+    if (NULL == ptr) {
+        return nil;
+    }
+    
+    DDIRModuleData *data = [[DDIRModuleData alloc] init];
     
     NSMutableDictionary *globalDic = [NSMutableDictionary dictionary];
     NSMutableArray *stringList = [[NSMutableArray alloc] init];
@@ -76,9 +93,9 @@ using namespace llvm;
             }
         }
     }
-    module.stringList = [NSArray arrayWithArray:stringList];
-    module.objcClassList = [NSArray arrayWithArray:objcClassList];
-    module.objcCategoryList = [NSArray arrayWithArray:objcCategoryList];
+    data.stringList = [NSArray arrayWithArray:stringList];
+    data.objcClassList = [NSArray arrayWithArray:objcClassList];
+    data.objcCategoryList = [NSArray arrayWithArray:objcCategoryList];
     
     NSMutableArray *functionNameList = [[NSMutableArray alloc] init];
     Module::FunctionListType &functionList = ptr->getFunctionList();
@@ -92,122 +109,39 @@ using namespace llvm;
         }
         [functionNameList addObject:function];
     }
-    module.functionList = [NSArray arrayWithArray:functionNameList];
+    data.functionList = [NSArray arrayWithArray:functionNameList];
     ptr.release();
-    return module;
+    return data;
 }
 
-- (void)changeClassNameFrom:(nonnull NSString *)oldClassName to:(nonnull NSString *)newClassName
+- (void)executeChangesWithBlock:(void (^_Nullable)(DDIRModule * _Nullable module))block
 {
-    NSString *(^setNewNameBlock)(GlobalValue *) = ^(GlobalValue *variable) {
-        return [DDIRUtil changeGlobalValueName:variable from:oldClassName to:newClassName];
-    };
+    [self executeChangesWithSavePath:self.path block:block];
+}
+
+- (void)executeChangesWithSavePath:(nonnull NSString *)savePath block:(void (^_Nullable)(DDIRModule * _Nullable module))block
+{
+    LLVMContext context;
+    SMDiagnostic err;
+    std::unique_ptr<Module> ptr = parseAssemblyFile([self.path cStringUsingEncoding:NSUTF8StringEncoding], err, context);
+    self.module = ptr.get();
+    if (nil != block) {
+        block(self);
+    }
+    self.module = NULL;
+    NSString *outputPath = [savePath stringByReplacingOccurrencesOfString:@".ll" withString:@".bc"];
+    StringRef output([outputPath cStringUsingEncoding:NSUTF8StringEncoding]);
+    std::error_code ec;
+    raw_fd_stream stream(output, ec);
+    WriteBitcodeToFile(*ptr, stream);
+    stream.close();
+    ptr.release();
     
-    // category
-    for (DDIRObjCCategory *c in self.objcCategoryList) {
-        if ([c.isa.className isEqualToString:oldClassName]) {
-            GlobalVariable *categoryVariable = self.module->getNamedGlobal(StringRef([c.name cStringUsingEncoding:NSUTF8StringEncoding]));
-            ConstantStruct *structPtr = dyn_cast<ConstantStruct>(categoryVariable->getInitializer());
-            assert(NULL != structPtr && 8 == structPtr->getNumOperands());
-            // instanceMethods
-            if (checkValue(structPtr, 2)) {
-                GlobalVariable *methods = getGlobalVariable(structPtr, 2);
-                setNewNameBlock(methods);
-                ConstantStruct *methodsPtr = dyn_cast<ConstantStruct>(methods->getInitializer());
-                uint64_t count = (dyn_cast<ConstantInt>(methodsPtr->getOperand(1)))->getZExtValue();
-                ConstantArray *list = dyn_cast<ConstantArray>(methodsPtr->getOperand(2));
-                for (int i = 0; i < count; ++i) {
-                    ConstantStruct *str = dyn_cast<ConstantStruct>(list->getOperand(i));
-                    GlobalVariable *m = dyn_cast<GlobalVariable>(dyn_cast<ConstantExpr>(str->getOperand(0))->getOperand(0));
-                    setNewNameBlock(m);
-                    Function *f = dyn_cast<Function>(dyn_cast<ConstantExpr>(str->getOperand(2))->getOperand(0));
-                    setNewNameBlock(f);
-                }
-            }
-            // classMethods
-            if (checkValue(structPtr, 3)) {
-                GlobalVariable *methods = getGlobalVariable(structPtr, 3);
-                setNewNameBlock(methods);
-                ConstantStruct *methodsPtr = dyn_cast<ConstantStruct>(methods->getInitializer());
-                uint64_t count = (dyn_cast<ConstantInt>(methodsPtr->getOperand(1)))->getZExtValue();
-                ConstantArray *list = dyn_cast<ConstantArray>(methodsPtr->getOperand(2));
-                for (int i = 0; i < count; ++i) {
-                    ConstantStruct *str = dyn_cast<ConstantStruct>(list->getOperand(i));
-                    GlobalVariable *m = dyn_cast<GlobalVariable>(dyn_cast<ConstantExpr>(str->getOperand(0))->getOperand(0));
-                    setNewNameBlock(m);
-                    Function *f = dyn_cast<Function>(dyn_cast<ConstantExpr>(str->getOperand(2))->getOperand(0));
-                    setNewNameBlock(f);
-                }
-            }
-        }
-    }
-    
-    // class
-    DDIRObjCClass *targetClass = nil;
-    for (DDIRObjCClass *c in self.objcClassList) {
-        if ([c.className isEqualToString:oldClassName]) {
-            targetClass = c;
-            break;
-        }
-    }
-    if (nil != targetClass) {
-        targetClass.className = newClassName;
-        targetClass.isa.className = newClassName;
-        void (^setNewClassName)(GlobalVariable *, DDIRObjCClass *) = ^(GlobalVariable *variable, DDIRObjCClass *target) {
-            assert(NULL != variable);
-            target.name = setNewNameBlock(variable);
-            ConstantStruct *structPtr = dyn_cast<ConstantStruct>(variable->getInitializer());
-            GlobalVariable *ro = dyn_cast<GlobalVariable>(structPtr->getOperand(4));
-            setNewNameBlock(ro);
-            ConstantStruct *roPtr = dyn_cast<ConstantStruct>(dyn_cast<GlobalVariable>(structPtr->getOperand(4))->getInitializer());
-            assert(NULL != roPtr && 10 == roPtr->getNumOperands());
-            // method
-            if (checkValue(roPtr, 5)) {
-                GlobalVariable *methods = getGlobalVariable(roPtr, 5);
-                setNewNameBlock(methods);
-                ConstantStruct *methodsPtr = dyn_cast<ConstantStruct>(methods->getInitializer());
-                uint64_t count = (dyn_cast<ConstantInt>(methodsPtr->getOperand(1)))->getZExtValue();
-                ConstantArray *list = dyn_cast<ConstantArray>(methodsPtr->getOperand(2));
-                for (int i = 0; i < count; ++i) {
-                    ConstantStruct *str = dyn_cast<ConstantStruct>(list->getOperand(i));
-                    GlobalVariable *m = dyn_cast<GlobalVariable>(dyn_cast<ConstantExpr>(str->getOperand(0))->getOperand(0));
-                    setNewNameBlock(m);
-                    Function *f = dyn_cast<Function>(dyn_cast<ConstantExpr>(str->getOperand(2))->getOperand(0));
-                    setNewNameBlock(f);
-                }
-            }
-            // protocol
-            if (checkValue(roPtr, 6)) {
-                setNewNameBlock(getGlobalVariable(roPtr, 6));
-            }
-            // ivar
-            if (checkValue(roPtr, 7)) {
-                GlobalVariable *ivars = getGlobalVariable(roPtr, 7);
-                setNewNameBlock(ivars);
-                ConstantStruct *ivarsPtr = dyn_cast<ConstantStruct>(ivars->getInitializer());
-                uint64_t count = (dyn_cast<ConstantInt>(ivarsPtr->getOperand(1)))->getZExtValue();
-                ConstantArray *list = dyn_cast<ConstantArray>(ivarsPtr->getOperand(2));
-                for (int i = 0; i < count; ++i) {
-                    ConstantStruct *str = dyn_cast<ConstantStruct>(list->getOperand(i));
-                    GlobalVariable *v = dyn_cast<GlobalVariable>(str->getOperand(0));
-                    setNewNameBlock(v);
-                }
-            }
-            // prop
-            if (checkValue(roPtr, 9)) {
-                setNewNameBlock(getGlobalVariable(roPtr, 9));
-            }
-        };
-        GlobalVariable *classVariable = self.module->getNamedGlobal(StringRef([targetClass.name cStringUsingEncoding:NSUTF8StringEncoding]));
-        if (NULL != classVariable) {
-            setNewClassName(classVariable, targetClass);
-            ConstantStruct *classPtr = dyn_cast<ConstantStruct>(classVariable->getInitializer());
-            setNewClassName(dyn_cast<GlobalVariable>(classPtr->getOperand(0)), targetClass.isa);
-            // class name
-            GlobalVariable *ro = dyn_cast<GlobalVariable>((dyn_cast<ConstantStruct>(classVariable->getInitializer()))->getOperand(4));
-            [DDIRUtil changeStringValue:dyn_cast<ConstantStruct>(ro->getInitializer()) atOperand:4 to:newClassName inModule:self.module];
-        }
-    }
+    system([[NSString stringWithFormat:@"/usr/local/bin/llvm-dis %@ %@", outputPath, savePath] cStringUsingEncoding:NSUTF8StringEncoding]);
+    system([[NSString stringWithFormat:@"xcrun clang -O1 -target arm64-apple-ios9 -fembed-bitcode -c %@ -o %@", savePath, [outputPath stringByReplacingOccurrencesOfString:@".bc" withString:@".o"]] cStringUsingEncoding:NSUTF8StringEncoding]);
+//    NSString *cmdStr = [NSString stringWithFormat:@"llvm-dis %@ %@", outputPath, savePath];
+//    system([cmdStr cStringUsingEncoding:NSUTF8StringEncoding]);
+//    [[NSFileManager defaultManager] removeItemAtPath:outputPath error:NULL];
 }
 
 - (void)addEmptyClass:(nonnull NSString *)className
@@ -376,11 +310,6 @@ using namespace llvm;
               toConstantArray:label
                            at:0
                      inModule:self.module];
-        
-        NSMutableArray *objcClassList = [NSMutableArray arrayWithArray:self.objcClassList];
-        DDIRObjCClass *c = _objCClassFromVariable(cls, nil);
-        [objcClassList addObject:c];
-        self.objcClassList = [NSArray arrayWithArray:objcClassList];
     }
 }
 
@@ -472,29 +401,98 @@ using namespace llvm;
               toConstantArray:label
                            at:0
                      inModule:self.module];
-        
-        NSMutableArray *objcCategoryList = [NSMutableArray arrayWithArray:self.objcCategoryList];
-        DDIRObjCCategory *c = [[DDIRObjCCategory alloc] init];
-        c.name = [NSString stringWithCString:cat->getName().data() encoding:NSUTF8StringEncoding];
-        c.categoryName = categoryName;
-//        c.isa =
-        [objcCategoryList addObject:c];
-        self.objcCategoryList = [NSArray arrayWithArray:objcCategoryList];
     }
     
 }
 
-- (void)moveClass:(nonnull NSString *)className to:(nonnull NSString *)section
+- (void)replaceObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName
 {
-    DDIRObjCClass *targetClass = nil;
-    for (DDIRObjCClass *c in self.objcClassList) {
-        if ([c.className isEqualToString:className]) {
-            targetClass = c;
-            break;
+    GlobalVariable *classVariable = [DDIRUtil getObjcClass:className inModule:self.module];
+    if (NULL != classVariable && classVariable->hasInitializer()) {
+        NSString *oldName = [[NSString stringWithCString:classVariable->getName().data() encoding:NSUTF8StringEncoding] stringByReplacingOccurrencesOfString:@"OBJC_CLASS_$_" withString:@""];
+        void (^setNewClassName)(GlobalVariable *) = ^(GlobalVariable *variable) {
+            assert(NULL != variable);
+            [DDIRUtil changeGlobalValueName:variable from:oldName to:newName];
+            ConstantStruct *structPtr = dyn_cast<ConstantStruct>(variable->getInitializer());
+            GlobalVariable *ro = dyn_cast<GlobalVariable>(structPtr->getOperand(4));
+            [DDIRUtil changeGlobalValueName:ro from:oldName to:newName];
+            ConstantStruct *roPtr = dyn_cast<ConstantStruct>(dyn_cast<GlobalVariable>(structPtr->getOperand(4))->getInitializer());
+            assert(NULL != roPtr && 10 == roPtr->getNumOperands());
+            // method
+            if (checkValue(roPtr, 5)) {
+                GlobalVariable *methods = getGlobalVariable(roPtr, 5);
+                [DDIRUtil changeGlobalValueName:methods from:oldName to:newName];
+                ConstantStruct *methodsPtr = dyn_cast<ConstantStruct>(methods->getInitializer());
+                uint64_t count = (dyn_cast<ConstantInt>(methodsPtr->getOperand(1)))->getZExtValue();
+                ConstantArray *list = dyn_cast<ConstantArray>(methodsPtr->getOperand(2));
+                for (int i = 0; i < count; ++i) {
+                    ConstantStruct *str = dyn_cast<ConstantStruct>(list->getOperand(i));
+                    GlobalVariable *m = dyn_cast<GlobalVariable>(dyn_cast<ConstantExpr>(str->getOperand(0))->getOperand(0));
+                    [DDIRUtil changeGlobalValueName:m from:oldName to:newName];
+                    Function *f = dyn_cast<Function>(dyn_cast<ConstantExpr>(str->getOperand(2))->getOperand(0));
+                    [DDIRUtil changeGlobalValueName:f from:oldName to:newName];
+                }
+            }
+            // protocol
+            if (checkValue(roPtr, 6)) {
+                [DDIRUtil changeGlobalValueName:getGlobalVariable(roPtr, 6) from:oldName to:newName];
+            }
+            // ivar
+            if (checkValue(roPtr, 7)) {
+                GlobalVariable *ivars = getGlobalVariable(roPtr, 7);
+                [DDIRUtil changeGlobalValueName:ivars from:oldName to:newName];
+                ConstantStruct *ivarsPtr = dyn_cast<ConstantStruct>(ivars->getInitializer());
+                uint64_t count = (dyn_cast<ConstantInt>(ivarsPtr->getOperand(1)))->getZExtValue();
+                ConstantArray *list = dyn_cast<ConstantArray>(ivarsPtr->getOperand(2));
+                for (int i = 0; i < count; ++i) {
+                    ConstantStruct *str = dyn_cast<ConstantStruct>(list->getOperand(i));
+                    GlobalVariable *v = dyn_cast<GlobalVariable>(str->getOperand(0));
+                    [DDIRUtil changeGlobalValueName:v from:oldName to:newName];
+                }
+            }
+            // prop
+            if (checkValue(roPtr, 9)) {
+                [DDIRUtil changeGlobalValueName:(getGlobalVariable(roPtr, 9)) from:oldName to:newName];
+            }
+        };
+        const char *oldVariablesName = classVariable->getName().data();
+        setNewClassName(classVariable);
+        ConstantStruct *classPtr = dyn_cast<ConstantStruct>(classVariable->getInitializer());
+        setNewClassName(dyn_cast<GlobalVariable>(classPtr->getOperand(0)));
+        // class name
+//            GlobalVariable *ro = dyn_cast<GlobalVariable>((dyn_cast<ConstantStruct>(classVariable->getInitializer()))->getOperand(4));
+//            [DDIRUtil changeStringValue:dyn_cast<ConstantStruct>(ro->getInitializer()) atOperand:4 to:newName inModule:self.module];
+        // category
+        GlobalVariable *newClassVariable = NULL;
+        Module::GlobalListType &globallist = self.module->getGlobalList();
+        for (GlobalVariable &variable : globallist) {
+            if (variable.hasSection()) {
+                if (0 == strncmp(variable.getSection().data(), "__DATA,__objc_catlist", 21)) {
+                    ConstantArray *arr = dyn_cast<ConstantArray>(variable.getInitializer());
+                    for (int i = 0; i < arr->getNumOperands(); ++i) {
+                        ConstantStruct *cat = dyn_cast<ConstantStruct>((dyn_cast<GlobalVariable>(dyn_cast<ConstantExpr>(arr->getOperand(i))->getOperand(0)))->getInitializer());
+                        if (cat->getOperand(1) == classVariable) {
+                            if (NULL == newClassVariable) {
+                                newClassVariable = new GlobalVariable(*self.module,
+                                                                      [DDIRUtil getStructType:IR_Ojbc_ClassTypeName inModule:self.module],
+                                                                      false,
+                                                                      GlobalValue::ExternalLinkage,
+                                                                      NULL,
+                                                                      oldVariablesName);
+                            }
+                            cat->handleOperandChange(classVariable, newClassVariable);
+                        }
+                    }
+                }
+            }
         }
     }
-    if (nil != targetClass) {
-        GlobalVariable *classVariable = self.module->getNamedGlobal(StringRef([targetClass.name cStringUsingEncoding:NSUTF8StringEncoding]));
+}
+
+- (void)moveClass:(nonnull NSString *)className to:(nonnull NSString *)section
+{
+    GlobalVariable *classVariable = [DDIRUtil getObjcClass:className inModule:self.module];
+    if (NULL != classVariable && classVariable->hasInitializer()) {
         Module::GlobalListType &globallist = self.module->getGlobalList();
         GlobalVariable *clsSection = NULL;
         GlobalVariable *targetSection = NULL;
@@ -515,23 +513,42 @@ using namespace llvm;
                     if (NULL == targetSection) {
                         std::vector<Constant *> list;
                         Constant *val = ConstantArray::get(ArrayType::get(Type::getInt8PtrTy(self.module->getContext()), 0), list);
-                        targetSection = new GlobalVariable(*self.module, val->getType(), clsSection->isConstant(), clsSection->getLinkage(), val, clsSection->getName(), clsSection, clsSection->getThreadLocalMode(), clsSection->getAddressSpace(), clsSection->isExternallyInitialized());
+                        targetSection = new GlobalVariable(*self.module,
+                                                           val->getType(),
+                                                           clsSection->isConstant(),
+                                                           clsSection->getLinkage(),
+                                                           val,
+                                                           clsSection->getName(),
+                                                           clsSection,
+                                                           clsSection->getThreadLocalMode(),
+                                                           clsSection->getAddressSpace(),
+                                                           clsSection->isExternallyInitialized());
                         targetSection->setAlignment(clsSection->getAlign());
                         targetSection->setUnnamedAddr(clsSection->getUnnamedAddr());
                         targetSection->setSection([[[NSString stringWithFormat:@"%s", clsSection->getSection().data()] stringByReplacingOccurrencesOfString:@"__DATA,__objc_classlist" withString:section] cStringUsingEncoding:NSUTF8StringEncoding]);
                         if (clsSection->hasComdat()) {
                             targetSection->setComdat(clsSection->getComdat());
                         }
-                        [DDIRUtil insertValue:ConstantExpr::getBitCast(cast<Constant>(targetSection), Type::getInt8PtrTy(self.module->getContext())) toConstantArray:[DDIRUtil getLlvmCompilerUsedInModule:self.module] at:0 inModule:self.module];
+                        [DDIRUtil insertValue:ConstantExpr::getBitCast(cast<Constant>(targetSection), Type::getInt8PtrTy(self.module->getContext()))
+                              toConstantArray:[DDIRUtil getLlvmCompilerUsedInModule:self.module]
+                                           at:0
+                                     inModule:self.module];
                     }
-                    [DDIRUtil insertValue:ConstantExpr::getBitCast(cast<Constant>(classVariable), Type::getInt8PtrTy(self.module->getContext())) toConstantArray:targetSection at:0 inModule:self.module];
-                    clsSection = [DDIRUtil removeValueFromConstantArray:clsSection at:i inModule:self.module];
+                    [DDIRUtil insertValue:ConstantExpr::getBitCast(cast<Constant>(classVariable), Type::getInt8PtrTy(self.module->getContext()))
+                          toConstantArray:targetSection
+                                       at:0
+                                 inModule:self.module];
+                    clsSection = [DDIRUtil removeValueFromConstantArray:clsSection
+                                                                     at:i
+                                                               inModule:self.module];
                     if (0 == (dyn_cast<Constant>(clsSection->getInitializer())->getNumOperands())) {
                         GlobalVariable *use = [DDIRUtil getLlvmCompilerUsedInModule:self.module];
                         ConstantArray *list = dyn_cast<ConstantArray>(use->getInitializer());
                         for (int j = 0; j < list->getNumOperands(); ++j) {
                             if (list->getOperand(j)->getOperand(0) == clsSection) {
-                                [DDIRUtil removeValueFromConstantArray:use at:j inModule:self.module];
+                                [DDIRUtil removeValueFromConstantArray:use
+                                                                    at:j
+                                                              inModule:self.module];
                                 clsSection->eraseFromParent();
                                 break;
                             }
@@ -544,34 +561,116 @@ using namespace llvm;
     }
 }
 
-- (void)executeChangesWithBlock:(void (^_Nullable)(DDIRModule * _Nullable module))block
+- (void)replaceCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName
 {
-    [self executeChangesWithSavePath:self.path block:block];
+    GlobalVariable *categoryVariable = [DDIRUtil getCategory:categoryName forObjcClass:className inModule:self.module];
+    if (NULL != categoryVariable) {
+        ConstantStruct *category = dyn_cast<ConstantStruct>(categoryVariable->getInitializer());
+        NSString *oldName = [[[NSString stringWithCString:categoryVariable->getName().data() encoding:NSUTF8StringEncoding] componentsSeparatedByString:@"_$_"] lastObject];
+        [DDIRUtil changeGlobalValueName:categoryVariable from:oldName to:newName];
+        // instanceMethods
+        if (checkValue(category, 2)) {
+            GlobalVariable *methods = getGlobalVariable(category, 2);
+            [DDIRUtil changeGlobalValueName:methods from:oldName to:newName];
+            ConstantStruct *methodsPtr = dyn_cast<ConstantStruct>(methods->getInitializer());
+            uint64_t count = (dyn_cast<ConstantInt>(methodsPtr->getOperand(1)))->getZExtValue();
+            ConstantArray *list = dyn_cast<ConstantArray>(methodsPtr->getOperand(2));
+            for (int i = 0; i < count; ++i) {
+                ConstantStruct *str = dyn_cast<ConstantStruct>(list->getOperand(i));
+                GlobalVariable *m = dyn_cast<GlobalVariable>(dyn_cast<ConstantExpr>(str->getOperand(0))->getOperand(0));
+                [DDIRUtil changeGlobalValueName:m from:oldName to:newName];
+                Function *f = dyn_cast<Function>(dyn_cast<ConstantExpr>(str->getOperand(2))->getOperand(0));
+                [DDIRUtil changeGlobalValueName:f from:oldName to:newName];
+            }
+        }
+        // classMethods
+        if (checkValue(category, 3)) {
+            GlobalVariable *methods = getGlobalVariable(category, 3);
+            [DDIRUtil changeGlobalValueName:methods from:oldName to:newName];
+            ConstantStruct *methodsPtr = dyn_cast<ConstantStruct>(methods->getInitializer());
+            uint64_t count = (dyn_cast<ConstantInt>(methodsPtr->getOperand(1)))->getZExtValue();
+            ConstantArray *list = dyn_cast<ConstantArray>(methodsPtr->getOperand(2));
+            for (int i = 0; i < count; ++i) {
+                ConstantStruct *str = dyn_cast<ConstantStruct>(list->getOperand(i));
+                GlobalVariable *m = dyn_cast<GlobalVariable>(dyn_cast<ConstantExpr>(str->getOperand(0))->getOperand(0));
+                [DDIRUtil changeGlobalValueName:m from:oldName to:newName];
+                Function *f = dyn_cast<Function>(dyn_cast<ConstantExpr>(str->getOperand(2))->getOperand(0));
+                [DDIRUtil changeGlobalValueName:f from:oldName to:newName];
+            }
+        }
+    }
 }
 
-- (void)executeChangesWithSavePath:(nonnull NSString *)savePath block:(void (^_Nullable)(DDIRModule * _Nullable module))block
+- (void)moveCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className to:(nonnull NSString *)section
 {
-    LLVMContext context;
-    SMDiagnostic err;
-    std::unique_ptr<Module> ptr = parseAssemblyFile([self.path cStringUsingEncoding:NSUTF8StringEncoding], err, context);
-    self.module = ptr.get();
-    if (nil != block) {
-        block(self);
+    GlobalVariable *categoryVariable = [DDIRUtil getCategory:categoryName forObjcClass:className inModule:self.module];
+    if (NULL != categoryVariable) {
+        Module::GlobalListType &globallist = self.module->getGlobalList();
+        GlobalVariable *catSection = NULL;
+        GlobalVariable *targetSection = NULL;
+        for (GlobalVariable &v : globallist) {
+            if (v.hasSection()) {
+                if (0 == strncmp(v.getSection().data(), "__DATA,__objc_catlist", 21)) {
+                    catSection = &v;
+                } else if (0 == strncmp(v.getSection().data(), [section cStringUsingEncoding:NSUTF8StringEncoding], section.length)) {
+                    targetSection = &v;
+                }
+            }
+        }
+        if (NULL != catSection) {
+            ConstantArray *arr = dyn_cast<ConstantArray>(catSection->getInitializer());
+            for (int i = 0; i < arr->getNumOperands(); ++i) {
+                GlobalVariable *cat = dyn_cast<GlobalVariable>(dyn_cast<ConstantExpr>(arr->getOperand(i))->getOperand(0));
+                if (categoryVariable == cat) {
+                    if (NULL == targetSection) {
+                        std::vector<Constant *> list;
+                        Constant *val = ConstantArray::get(ArrayType::get(Type::getInt8PtrTy(self.module->getContext()), 0), list);
+                        targetSection = new GlobalVariable(*self.module,
+                                                           val->getType(),
+                                                           catSection->isConstant(),
+                                                           catSection->getLinkage(),
+                                                           val,
+                                                           catSection->getName(),
+                                                           catSection,
+                                                           catSection->getThreadLocalMode(),
+                                                           catSection->getAddressSpace(),
+                                                           catSection->isExternallyInitialized());
+                        targetSection->setAlignment(catSection->getAlign());
+                        targetSection->setUnnamedAddr(catSection->getUnnamedAddr());
+                        targetSection->setSection([[[NSString stringWithFormat:@"%s", catSection->getSection().data()] stringByReplacingOccurrencesOfString:@"__DATA,__objc_catlist" withString:section] cStringUsingEncoding:NSUTF8StringEncoding]);
+                        if (catSection->hasComdat()) {
+                            targetSection->setComdat(catSection->getComdat());
+                        }
+                        [DDIRUtil insertValue:ConstantExpr::getBitCast(cast<Constant>(targetSection), Type::getInt8PtrTy(self.module->getContext()))
+                              toConstantArray:[DDIRUtil getLlvmCompilerUsedInModule:self.module]
+                                           at:0
+                                     inModule:self.module];
+                    }
+                    [DDIRUtil insertValue:ConstantExpr::getBitCast(cast<Constant>(categoryVariable), Type::getInt8PtrTy(self.module->getContext()))
+                          toConstantArray:targetSection
+                                       at:0
+                                 inModule:self.module];
+                    catSection = [DDIRUtil removeValueFromConstantArray:catSection
+                                                                     at:i
+                                                               inModule:self.module];
+                    if (0 == (dyn_cast<Constant>(catSection->getInitializer())->getNumOperands())) {
+                        GlobalVariable *use = [DDIRUtil getLlvmCompilerUsedInModule:self.module];
+                        ConstantArray *list = dyn_cast<ConstantArray>(use->getInitializer());
+                        for (int j = 0; j < list->getNumOperands(); ++j) {
+                            if (list->getOperand(j)->getOperand(0) == catSection) {
+                                [DDIRUtil removeValueFromConstantArray:use
+                                                                    at:j
+                                                              inModule:self.module];
+                                catSection->eraseFromParent();
+                                break;
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
     }
-    self.module = NULL;
-    NSString *outputPath = [savePath stringByReplacingOccurrencesOfString:@".ll" withString:@".bc"];
-    StringRef output([outputPath cStringUsingEncoding:NSUTF8StringEncoding]);
-    std::error_code ec;
-    raw_fd_stream stream(output, ec);
-    WriteBitcodeToFile(*ptr, stream);
-    stream.close();
-    ptr.release();
-    
-    system([[NSString stringWithFormat:@"/usr/local/bin/llvm-dis %@ %@", outputPath, savePath] cStringUsingEncoding:NSUTF8StringEncoding]);
-    system([[NSString stringWithFormat:@"xcrun clang -O1 -target arm64-apple-ios9 -fembed-bitcode -c %@ -o %@", savePath, [outputPath stringByReplacingOccurrencesOfString:@".bc" withString:@".o"]] cStringUsingEncoding:NSUTF8StringEncoding]);
-//    NSString *cmdStr = [NSString stringWithFormat:@"llvm-dis %@ %@", outputPath, savePath];
-//    system([cmdStr cStringUsingEncoding:NSUTF8StringEncoding]);
-//    [[NSFileManager defaultManager] removeItemAtPath:outputPath error:NULL];
 }
 
 static NSArray<DDIRObjCMethod *> *_objcMethodListFromStruct(ConstantStruct *methodPtr)
@@ -700,4 +799,7 @@ static DDIRObjCCategory *_objCCategoryFromVariable(GlobalVariable *variable, NSM
     return objcCategory;
 }
 
+@end
+
+@implementation DDIRModuleData
 @end

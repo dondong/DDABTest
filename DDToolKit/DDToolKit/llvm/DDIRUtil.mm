@@ -213,6 +213,30 @@ using namespace llvm;
     return module->getNamedGlobal([[NSString stringWithFormat:@"OBJC_CLASS_$_%@", className] cStringUsingEncoding:NSUTF8StringEncoding]);
 }
 
++ (llvm:: GlobalVariable * _Nullable)getCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className inModule:(llvm::Module * _Nonnull)module
+{
+    Module::GlobalListType &globallist = module->getGlobalList();
+    for (GlobalVariable &variable : globallist) {
+        if (variable.hasSection()) {
+            if (0 == strncmp(variable.getSection().data(), "__DATA,__objc_catlist", 21)) {
+                ConstantArray *arr = dyn_cast<ConstantArray>(variable.getInitializer());
+                for (int i = 0; i < arr->getNumOperands(); ++i) {
+                    GlobalVariable *categoryVariable = dyn_cast<GlobalVariable>(dyn_cast<ConstantExpr>(arr->getOperand(i))->getOperand(0));
+                    ConstantStruct *category = dyn_cast<ConstantStruct>(categoryVariable->getInitializer());
+                    assert(NULL != category && 8 == category->getNumOperands());
+                    if ([[self stringFromArray:dyn_cast<ConstantDataArray>((dyn_cast<GlobalVariable>(category->getOperand(0)->getOperand(0)))->getInitializer())] isEqualToString:categoryName]) {
+                        if ([self classNameFromGlobalVariable:dyn_cast<GlobalVariable>(category->getOperand(1))]) {
+                            return categoryVariable;
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    }
+    return nil;
+}
+
 + (llvm::GlobalVariable * _Nonnull)getLlvmCompilerUsedInModule:(llvm::Module * _Nonnull)module
 {
     GlobalVariable *used = module->getNamedGlobal("llvm.compiler.used");
@@ -251,6 +275,8 @@ using namespace llvm;
         n = [o stringByReplacingOccurrencesOfString:[NSString stringWithFormat:@"$_%@.", oldName] withString:[NSString stringWithFormat:@"$_%@.", newName]];
     } else if ([o containsString:[NSString stringWithFormat:@"[%@ ", oldName]]) {
         n = [o stringByReplacingOccurrencesOfString:[NSString stringWithFormat:@"[%@ ", oldName] withString:[NSString stringWithFormat:@"[%@ ", newName]];
+    } else if ([o containsString:[NSString stringWithFormat:@"(%@) ", oldName]]) {
+        n = [o stringByReplacingOccurrencesOfString:[NSString stringWithFormat:@"(%@) ", oldName] withString:[NSString stringWithFormat:@"(%@) ", newName]];
     }
     if (nil != n) {
         variable->setName(Twine([n cStringUsingEncoding:NSUTF8StringEncoding]));
@@ -392,5 +418,15 @@ using namespace llvm;
         [str appendFormat:@"%c", (char)array->getElementAsInteger(i)];
     }
     return [NSString stringWithString:str];
+}
+
++ (nonnull NSString *)classNameFromGlobalVariable:(llvm::GlobalVariable * _Nonnull)cls
+{
+    if (cls->hasInitializer()) {
+        GlobalVariable *ro = dyn_cast<GlobalVariable>((dyn_cast<ConstantStruct>(cls->getInitializer()))->getOperand(4));
+        return [self stringFromArray:dyn_cast<ConstantDataArray>((dyn_cast<ConstantStruct>(ro->getInitializer()))->getOperand(4)->getOperand(0))];
+    } else {
+        return [[NSString stringWithCString:cls->getName().data() encoding:NSUTF8StringEncoding] stringByReplacingOccurrencesOfString:@"OBJC_CLASS_$_" withString:@""];
+    }
 }
 @end

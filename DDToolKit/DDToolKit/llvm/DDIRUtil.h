@@ -28,7 +28,11 @@ extern const char *IR_Ojbc_CategoryTypeName;
 @interface DDIRUtil : NSObject
 + (nonnull NSDictionary<NSString *, NSValue *> *)getObjcClassTypeInModule:(llvm::Module * _Nonnull)module;
 + (nonnull NSDictionary<NSString *, NSValue *> *)getObjcCategoryTypeInModule:(llvm::Module * _Nonnull)module;
-+ (llvm::GlobalVariable * _Nullable)getObjcClass:(nonnull NSString *)className inModule:(llvm::Module * _Nonnull)module;
++ (llvm::GlobalVariable * _Nullable)getObjcClass:(nonnull NSString *)className
+                                        inModule:(llvm::Module * _Nonnull)module;
++ (llvm:: GlobalVariable * _Nullable)getCategory:(nonnull NSString *)categoryName
+                                    forObjcClass:(nonnull NSString *)className
+                                        inModule:(llvm::Module * _Nonnull)module;
 + (llvm::GlobalVariable * _Nonnull)getLlvmCompilerUsedInModule:(llvm::Module * _Nonnull)module;
 + (llvm::StructType * _Nullable)getStructType:(const char *)name inModule:(llvm::Module * _Nonnull)module;
 + (nonnull NSString *)changeGlobalValueName:(llvm::GlobalValue * _Nonnull)variable
@@ -41,6 +45,7 @@ extern const char *IR_Ojbc_CategoryTypeName;
 + (llvm::GlobalVariable * _Nonnull)insertValue:(llvm::Constant * _Nonnull)value toConstantArray:(llvm::GlobalVariable * _Nonnull)variable at:(NSUInteger)index inModule:(llvm::Module * _Nonnull)module;
 + (llvm::GlobalVariable *_Nonnull)removeValueFromConstantArray:(llvm::GlobalVariable *_Nonnull)variable at:(NSUInteger)index inModule:(llvm::Module * _Nonnull)module;
 + (nonnull NSString *)stringFromArray:(llvm::ConstantDataArray * _Nonnull)array;
++ (nonnull NSString *)classNameFromGlobalVariable:(llvm::GlobalVariable * _Nonnull)cls;
 @end
 
 NS_ASSUME_NONNULL_END

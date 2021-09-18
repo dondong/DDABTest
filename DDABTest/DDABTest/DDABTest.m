@@ -6,45 +6,73 @@
 //
 
 #import "DDABTest.h"
+#import "DDCommonDefine.h"
 #import <DDMemoryKit/dd_memory_kit.h>
 
 @implementation DDABTest
 + (void)load
 {
-    NSArray *settings = [NSArray arrayWithContentsOfFile:@""];
-    NSDictionary *configs = [NSDictionary dictionaryWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"" ofType:@"plist"]];
-    NSMutableDictionary *classDic = [NSMutableDictionary dictionary];
+    NSArray *settings = [NSArray arrayWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"DDABTestSettings" ofType:@"plist"]];
+    NSDictionary *configs = [NSDictionary dictionaryWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"DDABTestConfiguration" ofType:@"plist"]];
+    NSMutableDictionary<NSString *, NSMutableDictionary<NSString *, NSValue *> *> *classDic    = [NSMutableDictionary dictionary];
+    NSMutableDictionary<NSString *, NSMutableDictionary<NSString *, NSValue *> *> *categoryDic = [NSMutableDictionary dictionary];
+    
     struct dd_macho *macho = dd_copy_macho_at_index(0);
-    for (int i = 0; i < macho->msegments; ++i) {
-        struct dd_macho_segment segment = macho->segments[i];
-        if (strcmp(segment.seg_name, "__DATA")) {
-            for (int j = 0; j < segment.msections; ++j) {
-                if (strcmp(segment.sections[j].sect_name, "__objc_classlist") ||
-                    strcmp(segment.sections[j].sect_name, "__ddobjcclass")) {
-                    uintptr_t *bast_ptr = (uintptr_t *)segment.sections[j].addr;
-                    int class_count = (int)segment.sections[j].size / sizeof(uintptr_t);
-                    for (int k = 0; k < class_count; ++k) {
-                        char *class_ptr = (char *)*(bast_ptr + k);
-                        NSString *name = [NSString stringWithCString:_getClassName(class_ptr) encoding:NSUTF8StringEncoding];
-                        [classDic setObject:[NSValue valueWithPointer:class_ptr] forKey:name];
+    for (NSDictionary *dic in settings) {
+        NSString *clsSection = configs[dic[DDConfigModuleNameKey]][dic[DDConfigTagKey]][DDModuleClassSectionKey];
+        NSString *catSection = configs[dic[DDConfigModuleNameKey]][dic[DDConfigTagKey]][DDModuleCategorySectionKey];
+        for (int i = 0; i < macho->msegments; ++i) {
+            struct dd_macho_segment segment = macho->segments[i];
+            if (0 == strcmp(segment.seg_name, "__DATA_CONST") ||
+                0 == strcmp(segment.seg_name, "__DATA")) {
+                for (int j = 0; j < segment.msections; ++j) {
+                    // class
+                    if (0 == strcmp(segment.sections[j].sect_name, "__objc_classlist") ||
+                        0 == strcmp(segment.sections[j].sect_name, [clsSection cStringUsingEncoding:NSUTF8StringEncoding])) {
+                        uintptr_t *bast_ptr = (uintptr_t *)segment.sections[j].addr;
+                        int class_count = (int)segment.sections[j].size / sizeof(uintptr_t);
+                        NSMutableDictionary *d = [NSMutableDictionary dictionaryWithCapacity:class_count];
+                        [classDic setObject:d forKey:[NSString stringWithCString:segment.sections[j].sect_name encoding:NSUTF8StringEncoding]];
+                        for (int k = 0; k < class_count; ++k) {
+                            char *class_ptr = (char *)*(bast_ptr + k);
+                            NSString *name = [NSString stringWithCString:_getClassName(class_ptr) encoding:NSUTF8StringEncoding];
+                            if (nil != name) {
+                                [d setObject:[NSValue valueWithPointer:class_ptr] forKey:name];
+                            }
+                        }
+                    }
+                    // category
+                    if (0 == strcmp(segment.sections[j].sect_name, "__objc_nlcatlist") ||
+                        0 == strcmp(segment.sections[j].sect_name, [catSection cStringUsingEncoding:NSUTF8StringEncoding])) {
+                        uintptr_t *bast_ptr = (uintptr_t *)segment.sections[j].addr;
+                        int category_count = (int)segment.sections[j].size / sizeof(uintptr_t);
+                        NSMutableDictionary *d = [NSMutableDictionary dictionaryWithCapacity:category_count];
+                        [categoryDic setObject:d forKey:[NSString stringWithCString:segment.sections[j].sect_name encoding:NSUTF8StringEncoding]];
+                        for (int k = 0; k < category_count; ++k) {
+                            char *cat_ptr = (char *)*(bast_ptr + k);
+                            NSString *name = [NSString stringWithCString:_getCategoryName(cat_ptr) encoding:NSUTF8StringEncoding];
+                            [d setObject:[NSValue valueWithPointer:cat_ptr] forKey:name];
+                        }
                     }
                 }
             }
-            break;
         }
-    }
-    dd_delete_macho(macho);
-    for (NSArray *s in settings) {
-        for (NSDictionary<NSString *, NSString *> *c in configs[s][@"objc_class"]) {
-            char *dstClass = [classDic[c[@"dst"]] pointerValue];
-            char *srcClass = [classDic[c[@"src"]] pointerValue];
+        for (NSDictionary<NSString *, NSString *> *c in configs[dic[DDConfigModuleNameKey]][dic[DDConfigTagKey]][DDModuleClassKey]) {
+            char *dstClass = [classDic[@"__objc_classlist"][c[DDItemDstKey]] pointerValue];
+            char *srcClass = [classDic[clsSection][c[DDItemSrcKey]] pointerValue];
             if (NULL != dstClass && NULL != srcClass) {
                 _copyClass(srcClass, dstClass);
             }
-            
+        }
+        for (NSDictionary<NSString *, NSString *> *c in configs[dic[DDConfigModuleNameKey]][dic[DDConfigTagKey]][DDModuleCategoryKey]) {
+            char *dstCategory = [categoryDic[@"__objc_classlist"][c[DDItemDstKey]] pointerValue];
+            char *srcCategory = [categoryDic[catSection][c[DDItemSrcKey]] pointerValue];
+            if (NULL != dstCategory && NULL != srcCategory) {
+                _copyCategory(srcCategory, dstCategory);
+            }
         }
     }
-    
+    dd_delete_macho(macho);
 }
 
 struct cache_t {
@@ -80,25 +108,52 @@ static const char *_getClassName(char *classPtr)
 {
     struct objc_class_t *ptr = (struct objc_class_t *)classPtr;
     struct class_ro_t *roPtr = (struct class_ro_t *)(ptr->data & FAST_DATA_MASK);
-    return roPtr->name;
+    const char *p = roPtr->name;
+    NSLog(@"_getClassName %p  %p  %p",  ptr, roPtr, p);
+    NSLog(@"%s", p);
+    return p;
 }
 
 static bool _copyClass(char *srcClassPtr, char *dstClassPtr)
 {
-    const char *name = _getClassName(dstClassPtr);
+//    const char *name = _getClassName(dstClassPtr);
     struct objc_class_t *srcPtr = (struct objc_class_t *)srcClassPtr;
     struct objc_class_t *dstPtr = (struct objc_class_t *)dstClassPtr;
     struct class_ro_t *srcRoPtr = (struct class_ro_t *)(srcPtr->data & FAST_DATA_MASK);
     struct class_ro_t *dstRoPtr = (struct class_ro_t *)(dstPtr->data & FAST_DATA_MASK);
     memcpy(dstRoPtr, srcRoPtr, sizeof(struct class_ro_t));
-    dstRoPtr->name = name;
+//    dstRoPtr->name = name;
     // metal
     struct objc_class_t *srcMetalPtr = (struct objc_class_t *)srcPtr->isa;
     struct objc_class_t *dstMetalPtr = (struct objc_class_t *)dstPtr->isa;
     struct class_ro_t *srcMetalRoPtr = (struct class_ro_t *)(srcMetalPtr->data & FAST_DATA_MASK);
     struct class_ro_t *dstMetalRoPtr = (struct class_ro_t *)(dstMetalPtr->data & FAST_DATA_MASK);
     memcpy(dstMetalRoPtr, srcMetalRoPtr, sizeof(struct class_ro_t));
-    dstMetalRoPtr->name = name;
+//    dstMetalRoPtr->name = name;
     return true;
 }
+
+struct category_t {
+    const char *name;
+    uintptr_t *cls;
+    struct entsize_list_tt *instanceMethods;
+    struct entsize_list_tt *classMethods;
+    uintptr_t *protocols;
+    uintptr_t *instanceProperties;
+    // Fields below this point are not always present on disk.
+    struct entsize_list_tt *_classProperties;
+};
+
+static const char *_getCategoryName(char *categoryPtr)
+{
+    struct category_t *ptr = (struct category_t *)categoryPtr;
+    return ptr->name;
+}
+
+static bool _copyCategory(char *srcCategoryPtr, char *dstCategoryPtr)
+{
+    memcpy(dstCategoryPtr, srcCategoryPtr, sizeof(struct category_t));
+    return true;
+}
+
 @end

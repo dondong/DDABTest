@@ -9,17 +9,23 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+@interface DDStaticLibraryInfo : NSObject
+@property(nonatomic,strong,nonnull) NSString *path;
+@property(nonatomic,strong,nonnull) NSString *tag;
+@property(nonatomic,assign) BOOL isDefault;
++ (nonnull instancetype)infoWithPath:(nonnull NSString *)path tag:(nonnull NSString *)tag;
+@end
+
+@interface DDABTestInfo : NSObject
+@property(nonatomic,strong,nullable) NSString *moduleName;
+@property(nonatomic,strong,nullable) NSString *tempDirectory;
+@property(nonatomic,strong,nullable) NSArray<DDStaticLibraryInfo *> *inputLibraries;
+@property(nonatomic,strong,nullable) NSString *outputPath;
+@property(nonatomic,strong,nullable) NSString *configPath;
+@end
+
 @interface DDABTestTool : NSObject
-+ (void)mergeStaticLibraryWithFile:(nonnull NSString *)inputPath1
-                           andFile:(nonnull NSString *)inputPath2
-                            toFile:(nonnull NSString *)outputPath;
-+ (void)mergeStaticLibraryWithFile:(nonnull NSString *)inputPath1 verson:(nonnull NSString *)version1
-                           andFile:(nonnull NSString *)inputPath2 verson:(nonnull NSString *)version2
-                            toFile:(nonnull NSString *)outputPath;
-+ (void)mergeStaticLibraryWithFile:(nonnull NSString *)inputPath1 verson:(nonnull NSString *)version1
-                           andFile:(nonnull NSString *)inputPath2 verson:(nonnull NSString *)version2
-                            toFile:(nonnull NSString *)outputPath
-                       defaultFile:(nonnull NSString *)defaultPath;
++ (void)mergeStaticLibrariesWithInfo:(nonnull DDABTestInfo *)info;
 @end
 
 NS_ASSUME_NONNULL_END
