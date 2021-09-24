@@ -8,6 +8,8 @@
 #import "DDABTest.h"
 #import "DDCommonDefine.h"
 #import <DDMemoryKit/dd_memory_kit.h>
+#include <mach-o/dyld.h>
+#include <objc/runtime.h>
 
 @implementation DDABTest
 + (void)load
@@ -17,10 +19,23 @@
     NSMutableDictionary<NSString *, NSMutableDictionary<NSString *, NSValue *> *> *classDic    = [NSMutableDictionary dictionary];
     NSMutableDictionary<NSString *, NSMutableDictionary<NSString *, NSValue *> *> *categoryDic = [NSMutableDictionary dictionary];
     
-    struct dd_macho *macho = dd_copy_macho_at_index(0);
+    struct dd_macho *macho = NULL;
+    for (int i = 0; i < _dyld_image_count(); ++i) {
+        NSString *name = [NSString stringWithFormat:@"%s", _dyld_get_image_name(i)];
+        if ([[name stringByDeletingLastPathComponent] hasSuffix:@".app"]) {
+            macho = dd_copy_macho_at_index(i);
+            break;
+        }
+    }
+    if (NULL == macho) {
+        return;
+    }
     for (NSDictionary *dic in settings) {
         NSString *clsSection = configs[dic[DDConfigModuleNameKey]][dic[DDConfigTagKey]][DDModuleClassSectionKey];
         NSString *catSection = configs[dic[DDConfigModuleNameKey]][dic[DDConfigTagKey]][DDModuleCategorySectionKey];
+        if (nil == clsSection && nil == catSection) {
+            continue;
+        }
         for (int i = 0; i < macho->msegments; ++i) {
             struct dd_macho_segment segment = macho->segments[i];
             if (0 == strcmp(segment.seg_name, "__DATA_CONST") ||
@@ -42,7 +57,7 @@
                         }
                     }
                     // category
-                    if (0 == strcmp(segment.sections[j].sect_name, "__objc_nlcatlist") ||
+                    if (0 == strcmp(segment.sections[j].sect_name, "__objc_catlist") ||
                         0 == strcmp(segment.sections[j].sect_name, [catSection cStringUsingEncoding:NSUTF8StringEncoding])) {
                         uintptr_t *bast_ptr = (uintptr_t *)segment.sections[j].addr;
                         int category_count = (int)segment.sections[j].size / sizeof(uintptr_t);
@@ -50,7 +65,7 @@
                         [categoryDic setObject:d forKey:[NSString stringWithCString:segment.sections[j].sect_name encoding:NSUTF8StringEncoding]];
                         for (int k = 0; k < category_count; ++k) {
                             char *cat_ptr = (char *)*(bast_ptr + k);
-                            NSString *name = [NSString stringWithCString:_getCategoryName(cat_ptr) encoding:NSUTF8StringEncoding];
+                            NSString *name = [NSString stringWithFormat:@"%s(%s)", _getCategoryClassName(cat_ptr), _getCategoryName(cat_ptr)];
                             [d setObject:[NSValue valueWithPointer:cat_ptr] forKey:name];
                         }
                     }
@@ -65,7 +80,7 @@
             }
         }
         for (NSDictionary<NSString *, NSString *> *c in configs[dic[DDConfigModuleNameKey]][dic[DDConfigTagKey]][DDModuleCategoryKey]) {
-            char *dstCategory = [categoryDic[@"__objc_classlist"][c[DDItemDstKey]] pointerValue];
+            char *dstCategory = [categoryDic[@"__objc_catlist"][c[DDItemDstKey]] pointerValue];
             char *srcCategory = [categoryDic[catSection][c[DDItemSrcKey]] pointerValue];
             if (NULL != dstCategory && NULL != srcCategory) {
                 _copyCategory(srcCategory, dstCategory);
@@ -104,14 +119,25 @@ struct class_ro_t {
     struct entsize_list_tt * baseProperties;
 };
 
+struct class_rw_t {
+    uint32_t flags;
+    uint32_t version;
+    struct class_ro_t *ro;
+};
+
+#define RW_REALIZED           (1<<31)
 static const char *_getClassName(char *classPtr)
 {
-    struct objc_class_t *ptr = (struct objc_class_t *)classPtr;
-    struct class_ro_t *roPtr = (struct class_ro_t *)(ptr->data & FAST_DATA_MASK);
-    const char *p = roPtr->name;
-    NSLog(@"_getClassName %p  %p  %p",  ptr, roPtr, p);
-    NSLog(@"%s", p);
-    return p;
+//    struct objc_class_t *ptr = (struct objc_class_t *)classPtr;
+//    struct class_rw_t *rwPtr = (struct class_ro_t *)(ptr->data & FAST_DATA_MASK);
+//    struct class_ro_t *roPtr = NULL;
+//    if (0 != (RW_REALIZED & rwPtr->flags)) {
+//        roPtr = rwPtr->ro;
+//    } else {
+//        roPtr = (struct class_ro_t *)rwPtr;
+//    }
+//    return roPtr->name;
+    return class_getName((__bridge Class)(void *)classPtr);
 }
 
 static bool _copyClass(char *srcClassPtr, char *dstClassPtr)
@@ -143,6 +169,12 @@ struct category_t {
     // Fields below this point are not always present on disk.
     struct entsize_list_tt *_classProperties;
 };
+
+static const char *_getCategoryClassName(char *categoryPtr)
+{
+    struct category_t *ptr = (struct category_t *)categoryPtr;
+    return _getClassName((char *)ptr->cls);
+}
 
 static const char *_getCategoryName(char *categoryPtr)
 {

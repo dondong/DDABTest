@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A328CC5026FC99BE002BFD20 /* libDDMemoryKit.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A328CC4F26FC99BE002BFD20 /* libDDMemoryKit.a */; };
 		A3B1FAFA26EEF02D009831A4 /* DDABTest.m in Sources */ = {isa = PBXBuildFile; fileRef = A3B1FAF926EEF02D009831A4 /* DDABTest.m */; };
 		A3B1FAFB26EEF02E009831A4 /* DDABTest.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = A3B1FAF826EEF02D009831A4 /* DDABTest.h */; };
 		DB21EB192329E65A19C9F2C0 /* libPods-DDABTest.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3D41601EA41E472602EDA54F /* libPods-DDABTest.a */; };
@@ -29,6 +30,7 @@
 		3D41601EA41E472602EDA54F /* libPods-DDABTest.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-DDABTest.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		6D7C38397EB40F06FB9CA01E /* Pods-DDABTest.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-DDABTest.debug.xcconfig"; path = "Target Support Files/Pods-DDABTest/Pods-DDABTest.debug.xcconfig"; sourceTree = "<group>"; };
 		98030591B3C4D60F613B801C /* Pods-DDABTest.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-DDABTest.release.xcconfig"; path = "Target Support Files/Pods-DDABTest/Pods-DDABTest.release.xcconfig"; sourceTree = "<group>"; };
+		A328CC4F26FC99BE002BFD20 /* libDDMemoryKit.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libDDMemoryKit.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		A39DD35F26F43FB500B1EFF7 /* DDCommonDefine.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DDCommonDefine.h; sourceTree = "<group>"; };
 		A3B1FAF526EEF02D009831A4 /* libDDABTest.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libDDABTest.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		A3B1FAF826EEF02D009831A4 /* DDABTest.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DDABTest.h; sourceTree = "<group>"; };
@@ -40,6 +42,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A328CC5026FC99BE002BFD20 /* libDDMemoryKit.a in Frameworks */,
 				DB21EB192329E65A19C9F2C0 /* libPods-DDABTest.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -59,6 +62,7 @@
 		4D2AFAFE100EA790574D3FFA /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				A328CC4F26FC99BE002BFD20 /* libDDMemoryKit.a */,
 				3D41601EA41E472602EDA54F /* libPods-DDABTest.a */,
 			);
 			name = Frameworks;
@@ -309,6 +313,7 @@
 				ARCHS = "$(ARCHS_STANDARD)";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 5T35W28N8A;
+				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -323,6 +328,7 @@
 				ARCHS = "$(ARCHS_STANDARD)";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 5T35W28N8A;
+				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

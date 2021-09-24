@@ -405,7 +405,7 @@ using namespace llvm;
     
 }
 
-- (void)replaceObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName
+- (BOOL)replaceObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName
 {
     GlobalVariable *classVariable = [DDIRUtil getObjcClass:className inModule:self.module];
     if (NULL != classVariable && classVariable->hasInitializer()) {
@@ -486,10 +486,12 @@ using namespace llvm;
                 }
             }
         }
+        return true;
     }
+    return false;
 }
 
-- (void)moveClass:(nonnull NSString *)className to:(nonnull NSString *)section
+- (BOOL)moveClass:(nonnull NSString *)className to:(nonnull NSString *)section
 {
     GlobalVariable *classVariable = [DDIRUtil getObjcClass:className inModule:self.module];
     if (NULL != classVariable && classVariable->hasInitializer()) {
@@ -558,10 +560,12 @@ using namespace llvm;
                 }
             }
         }
+        return true;
     }
+    return false;
 }
 
-- (void)replaceCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName
+- (BOOL)replaceCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName
 {
     GlobalVariable *categoryVariable = [DDIRUtil getCategory:categoryName forObjcClass:className inModule:self.module];
     if (NULL != categoryVariable) {
@@ -598,10 +602,12 @@ using namespace llvm;
                 [DDIRUtil changeGlobalValueName:f from:oldName to:newName];
             }
         }
+        return true;
     }
+    return false;
 }
 
-- (void)moveCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className to:(nonnull NSString *)section
+- (BOOL)moveCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className to:(nonnull NSString *)section
 {
     GlobalVariable *categoryVariable = [DDIRUtil getCategory:categoryName forObjcClass:className inModule:self.module];
     if (NULL != categoryVariable) {
@@ -670,7 +676,9 @@ using namespace llvm;
                 }
             }
         }
+        return true;
     }
+    return false;
 }
 
 static NSArray<DDIRObjCMethod *> *_objcMethodListFromStruct(ConstantStruct *methodPtr)

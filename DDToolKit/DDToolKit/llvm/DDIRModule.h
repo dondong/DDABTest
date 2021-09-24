@@ -29,10 +29,10 @@ NS_ASSUME_NONNULL_BEGIN
 // change
 - (void)addEmptyClass:(nonnull NSString *)className;
 - (void)addEmptyCategory:(nonnull NSString *)categoryName toClass:(nonnull NSString *)className;
-- (void)replaceObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName;
-- (void)moveClass:(nonnull NSString *)className to:(nonnull NSString *)section;
-- (void)replaceCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName;
-- (void)moveCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className to:(nonnull NSString *)section;
+- (BOOL)replaceObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName;
+- (BOOL)moveClass:(nonnull NSString *)className to:(nonnull NSString *)section;
+- (BOOL)replaceCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName;
+- (BOOL)moveCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className to:(nonnull NSString *)section;
 @end
 
 NS_ASSUME_NONNULL_END

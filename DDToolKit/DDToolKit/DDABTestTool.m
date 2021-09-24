@@ -32,7 +32,7 @@
         if (i.isDefault || nil == defaultInfo) {
             defaultInfo = i;
         }
-        i.lib = [DDStaticLibrary libraryFromPath:i.path tempDir:[info.tempDirectory stringByAppendingPathComponent:i.tag]];
+        i.lib = [DDStaticLibrary libraryFromPath:i.path tempDir:info.tempDirectory];
         maxClsCount = MAX(maxClsCount, i.lib.classList.count);
         maxCatCount = MAX(maxCatCount, i.lib.categoryList.count);
     }
@@ -44,15 +44,15 @@
     NSMutableArray<NSString *> *emptyCategories = [NSMutableArray arrayWithCapacity:emptyCatCount];
     [defaultInfo.lib.moduleList[0] executeChangesWithBlock:^(DDIRModule * _Nullable module) {
         for (int i = 0; i < emptyClsCount; ++i) {
-            NSString *n = [self getNewEmptyClassName];
+            NSString *n = [self _getNewEmptyClassName];
             [module addEmptyClass:n];
             [emptyClasses addObject:n];
         }
         NSString *clsName = emptyClasses.count > 0 ? emptyClasses[0] : @"NSObject";
         for (int i = 0; i < emptyCatCount; ++i) {
-            NSString *n = [self getNewEmptyCategoryName];
+            NSString *n = [self _getNewEmptyCategoryName];
             [module addEmptyCategory:n toClass:clsName];
-            [emptyCategories addObject:n];
+            [emptyCategories addObject:[NSString stringWithFormat:@"%@(%@)", clsName, n]];
         }
     }];
     
@@ -129,8 +129,8 @@
             NSMutableArray *catArray = [NSMutableArray array];
             NSMutableDictionary *c = [NSMutableDictionary dictionary];
             [config setObject:c forKey:i.tag];
-            [c setObject:[NSString stringWithFormat:@"__DATA,%@", clsSectionName] forKey:DDModuleClassSectionKey];
-            [c setObject:[NSString stringWithFormat:@"__DATA,%@", catSectionName] forKey:DDModuleCategorySectionKey];
+            [c setObject:clsSectionName forKey:DDModuleClassSectionKey];
+            [c setObject:catSectionName forKey:DDModuleCategorySectionKey];
             [c setObject:clsArray forKey:DDModuleClassKey];
             [c setObject:catArray forKey:DDModuleCategoryKey];
             for (DDIRModule *m in i.lib.moduleList) {
@@ -141,47 +141,73 @@
                     // class
                     for (DDIRObjCClass *cls in comClsArray) {
                         NSString *newName = [cls.className stringByAppendingFormat:@"_%@", i.tag];
-                        [clsArray addObject:@{DDItemSrcKey: cls.className,
-                                              DDItemDstKey: cls.className}];
-                        [module replaceObjcClass:cls.className  withNewComponentName:newName];
-                        [module moveClass:cls.className to:clsSectionName];
+                        if ([module replaceObjcClass:cls.className  withNewComponentName:newName]) {
+                            [module moveClass:cls.className to:[NSString stringWithFormat:@"__DATA,%@", clsSectionName]];
+                            [clsArray addObject:@{DDItemSrcKey: cls.className,
+                                                  DDItemDstKey: cls.className}];
+                        }
                     }
                     for (int i = 0; i < clsArray2.count; ++i) {
                         DDIRObjCClass *cls = clsArray2[i];
                         NSString *targetName = (i < clsArray1.count ? [clsArray1[i] className] : emptyClasses[i - clsArray1.count]);
-                        [module moveClass:cls.className to:clsSectionName];
-                        [clsArray addObject:@{DDItemSrcKey: targetName,
-                                              DDItemDstKey: cls.className}];
+                        if ([module moveClass:cls.className to:[NSString stringWithFormat:@"__DATA,%@", clsSectionName]]) {
+                            [clsArray addObject:@{DDItemSrcKey: targetName,
+                                                  DDItemDstKey: cls.className}];
+                        }
                     }
                     // category
                     for (DDIRObjCCategory *cat in comCatArray) {
                         NSString *newName = [cat.categoryName stringByAppendingFormat:@"_%@", i.tag];
-                        [catArray addObject:@{DDItemSrcKey: [NSString stringWithFormat:@"%@(%@)", cat.isa.className, cat.categoryName],
-                                              DDItemDstKey: [NSString stringWithFormat:@"%@(%@)", cat.isa.className, cat.categoryName]}];
-                        [module replaceCategory:cat.categoryName forObjcClass:cat.isa.className withNewComponentName:newName];
-                        [module moveCategory:cat.categoryName forObjcClass:cat.isa.className to:catSectionName];
+                        if ([module replaceCategory:cat.categoryName forObjcClass:cat.isa.className withNewComponentName:newName]) {
+                            [module moveCategory:cat.categoryName forObjcClass:cat.isa.className to:[NSString stringWithFormat:@"__DATA,%@", catSectionName]];
+                            [catArray addObject:@{DDItemSrcKey: [NSString stringWithFormat:@"%@(%@)", cat.isa.className, cat.categoryName],
+                                                  DDItemDstKey: [NSString stringWithFormat:@"%@(%@)", cat.isa.className, cat.categoryName]}];
+                        }
                     }
                     for (int i = 0; i < catArray2.count; ++i) {
                         DDIRObjCCategory *cat = catArray2[i];
-                        NSString *targetName = (i < catArray2.count ? [catArray1[i] className] : emptyCategories[i - catArray1.count]);
-                        [module moveCategory:cat.categoryName forObjcClass:cat.isa.className to:catSectionName];
-                        [catArray addObject:@{DDItemSrcKey: targetName,
-                                              DDItemDstKey: [NSString stringWithFormat:@"%@(%@)", cat.isa.className, cat.categoryName]}];
+                        NSString *targetName = (i < catArray1.count ? [NSString stringWithFormat:@"%@(%@)", [[catArray1[i] isa] className], [catArray1[i] categoryName]] : emptyCategories[i - catArray1.count]);
+                        if ([module moveCategory:cat.categoryName forObjcClass:cat.isa.className to:[NSString stringWithFormat:@"__DATA,%@", catSectionName]]) {
+                            [catArray addObject:@{DDItemSrcKey: targetName,
+                                                  DDItemDstKey: [NSString stringWithFormat:@"%@(%@)", cat.isa.className, cat.categoryName]}];
+                        }
                     }
                 }];
             }
         }
     }
     
-    NSString *tmpDir = [[info.outputPath stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"tmp"];
-    [[NSFileManager defaultManager] removeItemAtPath:tmpDir error:NULL];
-    [[NSFileManager defaultManager] createDirectoryAtPath:tmpDir withIntermediateDirectories:YES attributes:nil error:NULL];
-    for (NSString *path in llfilePathes) {
-        NSString *name = [path lastPathComponent];
-        system([[NSString stringWithFormat:@"xcrun clang -O1 -target arm64-apple-ios9 -fembed-bitcode -c %@ -o %@", path, [tmpDir stringByAppendingPathComponent:[[name stringByDeletingPathExtension] stringByAppendingString:@".o"]]] cStringUsingEncoding:NSUTF8StringEncoding]);
+    NSString *archDir = [[info.outputPath stringByDeletingLastPathComponent] stringByAppendingPathComponent:[NSString stringWithFormat:@"tmp_%lu", random()]];
+    [[NSFileManager defaultManager] removeItemAtPath:archDir error:NULL];
+    [[NSFileManager defaultManager] createDirectoryAtPath:archDir withIntermediateDirectories:YES attributes:nil error:NULL];
+    NSMutableString *archPath = [NSMutableString string];
+    NSMutableSet *architectures = [NSMutableSet set];
+    for (DDStaticLibraryInfo *i in info.inputLibraries) {
+        [architectures addObjectsFromArray:i.lib.architectures];
     }
-    system([[NSString stringWithFormat:@"ar -rcs %@ %@/*.o", info.outputPath, tmpDir] cStringUsingEncoding:NSUTF8StringEncoding]);
-    [[NSFileManager defaultManager] removeItemAtPath:tmpDir error:NULL];
+    for (NSString *arch in architectures) {
+        NSString *tmpDir = [[info.outputPath stringByDeletingLastPathComponent] stringByAppendingPathComponent:[NSString stringWithFormat:@"tmp_%lu", random()]];
+        [[NSFileManager defaultManager] removeItemAtPath:tmpDir error:NULL];
+        [[NSFileManager defaultManager] createDirectoryAtPath:tmpDir withIntermediateDirectories:YES attributes:nil error:NULL];
+        NSString *target = [self _targetForArch:arch];
+        for (NSString *path in llfilePathes) {
+            NSString *name = [path lastPathComponent];
+            system([[NSString stringWithFormat:@"xcrun clang -O1 -target %@ -fembed-bitcode -c %@ -o %@", target, path, [tmpDir stringByAppendingPathComponent:[[name stringByDeletingPathExtension] stringByAppendingString:@".o"]]] cStringUsingEncoding:NSUTF8StringEncoding]);
+        }
+        if (architectures.count > 1) {
+            NSString *name = [[info.outputPath lastPathComponent] stringByDeletingPathExtension];
+            NSString *output = [NSString stringWithFormat:@"%@_%@.a", [archDir stringByAppendingPathComponent:name], arch];
+            system([[NSString stringWithFormat:@"ar -rcs %@ %@/*.o", output, tmpDir] cStringUsingEncoding:NSUTF8StringEncoding]);
+            [archPath appendFormat:@" %@ ", output];
+        } else {
+            system([[NSString stringWithFormat:@"ar -rcs %@ %@/*.o", info.outputPath, tmpDir] cStringUsingEncoding:NSUTF8StringEncoding]);
+        }
+        [[NSFileManager defaultManager] removeItemAtPath:tmpDir error:NULL];
+    }
+    if (archPath.length > 0) {
+        system([[NSString stringWithFormat:@"lipo -create %@ -output %@", archPath, info.outputPath] cStringUsingEncoding:NSUTF8StringEncoding]);
+    }
+    [[NSFileManager defaultManager] removeItemAtPath:archDir error:NULL];
     
     for (DDStaticLibraryInfo *i in info.inputLibraries) {
         [i.lib clear];
@@ -189,7 +215,7 @@
     [outputConfig writeToFile:info.configPath atomically:YES];
 }
 
-+ (nonnull NSString *)getNewEmptyClassName
++ (nonnull NSString *)_getNewEmptyClassName
 {
     static NSString *curretClassName = nil;
     static int num = 0;
@@ -202,7 +228,7 @@
     return curretClassName;
 }
 
-+ (nonnull NSString *)getNewEmptyCategoryName
++ (nonnull NSString *)_getNewEmptyCategoryName
 {
     static NSString *curretCategoryName = nil;
     static int num = 0;
@@ -213,6 +239,15 @@
     }
     num++;
     return curretCategoryName;
+}
+
++ (nonnull NSString *)_targetForArch:(nonnull NSString *)arch
+{
+    NSDictionary *dic = @{@"armv7":  @"armv7-apple-ios9",
+                          @"arm64":  @"arm64-apple-ios9",
+                          @"i386":   @"i386-apple-macosx10.14",
+                          @"x86_64": @"x86_64-apple-macosx10.14"};
+    return [dic objectForKey:arch];
 }
 @end
 
