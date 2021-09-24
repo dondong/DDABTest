@@ -8,7 +8,7 @@
       location = "group:DDTestStaticLibrary/DDTestStaticLibrary.xcodeproj">
    </FileRef>
    <FileRef
-      location = "group:../DDABTest/DDABTest">
+      location = "group:../DDABTest/DDABTest.xcodeproj">
    </FileRef>
    <FileRef
       location = "group:../DDABTest/Pods/Pods.xcodeproj">
