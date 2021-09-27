@@ -138,10 +138,7 @@ using namespace llvm;
     ptr.release();
     
     system([[NSString stringWithFormat:@"/usr/local/bin/llvm-dis %@ %@", outputPath, savePath] cStringUsingEncoding:NSUTF8StringEncoding]);
-    system([[NSString stringWithFormat:@"xcrun clang -O1 -target arm64-apple-ios9 -fembed-bitcode -c %@ -o %@", savePath, [outputPath stringByReplacingOccurrencesOfString:@".bc" withString:@".o"]] cStringUsingEncoding:NSUTF8StringEncoding]);
-//    NSString *cmdStr = [NSString stringWithFormat:@"llvm-dis %@ %@", outputPath, savePath];
-//    system([cmdStr cStringUsingEncoding:NSUTF8StringEncoding]);
-//    [[NSFileManager defaultManager] removeItemAtPath:outputPath error:NULL];
+    [[NSFileManager defaultManager] removeItemAtPath:outputPath error:NULL];
 }
 
 - (void)addEmptyClass:(nonnull NSString *)className

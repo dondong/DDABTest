@@ -79,6 +79,7 @@
                 _copyClass(srcClass, dstClass);
             }
         }
+        return;
         for (NSDictionary<NSString *, NSString *> *c in configs[dic[DDConfigModuleNameKey]][dic[DDConfigTagKey]][DDModuleCategoryKey]) {
             char *dstCategory = [categoryDic[@"__objc_catlist"][c[DDItemDstKey]] pointerValue];
             char *srcCategory = [categoryDic[catSection][c[DDItemSrcKey]] pointerValue];
@@ -103,6 +104,12 @@ struct objc_class_t {
     uintptr_t *superclass;
     struct cache_t    cache;
     uintptr_t  data;
+};
+
+struct entsize_list_tt {
+    uint32_t entsizeAndFlags;
+    uint32_t count;
+    uintptr_t first;
 };
 
 struct class_ro_t {
@@ -179,6 +186,11 @@ static const char *_getCategoryClassName(char *categoryPtr)
 static const char *_getCategoryName(char *categoryPtr)
 {
     struct category_t *ptr = (struct category_t *)categoryPtr;
+    for (int i = 0; i < ptr->instanceMethods->count; ++i) {
+        uintptr_t v = (uintptr_t)(ptr->instanceMethods);
+        char *n = *(char **)(v + 8 + i * 24);
+        NSLog(@"Mehtod: %s  %s", ptr->name, n);
+    }
     return ptr->name;
 }
 

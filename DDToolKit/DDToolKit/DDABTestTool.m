@@ -243,8 +243,8 @@
 
 + (nonnull NSString *)_targetForArch:(nonnull NSString *)arch
 {
-    NSDictionary *dic = @{@"armv7":  @"armv7-apple-ios9",
-                          @"arm64":  @"arm64-apple-ios9",
+    NSDictionary *dic = @{@"armv7":  @"armv7-apple-ios10.0.0",
+                          @"arm64":  @"arm64-apple-ios10.0.0",
                           @"i386":   @"i386-apple-macosx10.14",
                           @"x86_64": @"x86_64-apple-macosx10.14"};
     return [dic objectForKey:arch];

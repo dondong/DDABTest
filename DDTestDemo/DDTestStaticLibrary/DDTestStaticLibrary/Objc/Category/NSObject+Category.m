@@ -6,6 +6,7 @@
 //
 
 #import "NSObject+Category.h"
+#import "DDTestObject+Category.h"
 #if DemoTarget==1
 #import "NSObject+A.h"
 #else
@@ -16,6 +17,7 @@
 + (void)categoryStaticTest
 {
     DDLog(@"+[NSObject(Category) categoryStaticTest]");
+    [DDTestObject categoryStaticTestObject];
 #if DemoTarget==1
     [self categoryStaticTest_A];
 #else
@@ -27,6 +29,8 @@
 - (void)categoryInstanceTest
 {
     DDLog(@"-[NSObject(Category) categoryInstanceTest]");
+    DDTestObject *o = [[DDTestObject alloc] init];
+    [o categoryInstanceTestObject];
 #if DemoTarget==1
     [self categoryInstanceTest_A];
 #else
