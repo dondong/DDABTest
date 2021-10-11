@@ -43,6 +43,7 @@ extern const char *IR_Ojbc_CategoryTypeName;
                        to:(nonnull NSString *)newValue
                  inModule:(llvm::Module * _Nonnull)module;
 + (llvm::GlobalVariable * _Nonnull)insertValue:(llvm::Constant * _Nonnull)value toConstantArray:(llvm::GlobalVariable * _Nonnull)variable at:(NSUInteger)index inModule:(llvm::Module * _Nonnull)module;
++ (llvm::GlobalVariable *_Nonnull)removeValueFromConstantArray:(llvm::GlobalVariable *_Nonnull)variable constant:(llvm::Constant *_Nonnull)constant inModule:(llvm::Module * _Nonnull)module;
 + (llvm::GlobalVariable *_Nonnull)removeValueFromConstantArray:(llvm::GlobalVariable *_Nonnull)variable at:(NSUInteger)index inModule:(llvm::Module * _Nonnull)module;
 + (nonnull NSString *)stringFromArray:(llvm::ConstantDataArray * _Nonnull)array;
 + (nonnull NSString *)classNameFromGlobalVariable:(llvm::GlobalVariable * _Nonnull)cls;

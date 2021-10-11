@@ -368,6 +368,23 @@ using namespace llvm;
     return variable;
 }
 
++ (llvm::GlobalVariable *_Nonnull)removeValueFromConstantArray:(llvm::GlobalVariable *_Nonnull)variable constant:(llvm::Constant *_Nonnull)constant inModule:(llvm::Module * _Nonnull)module
+{
+    Constant *arr = dyn_cast<Constant>(variable->getInitializer());
+    int index = -1;
+    for (int i = 0; i < arr->getNumOperands(); ++i) {
+        if (constant == (dyn_cast<ConstantArray>(arr))->getOperand(i)->getOperand(0)) {
+            index = i;
+            break;
+        }
+    }
+    if (index >= 0) {
+        return [self removeValueFromConstantArray:variable at:index inModule:module];
+    } else {
+        return variable;
+    }
+}
+
 + (llvm::GlobalVariable *_Nonnull)removeValueFromConstantArray:(llvm::GlobalVariable *_Nonnull)variable at:(NSUInteger)index inModule:(llvm::Module * _Nonnull)module
 {
     Constant *arr = dyn_cast<Constant>(variable->getInitializer());

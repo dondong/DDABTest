@@ -171,7 +171,7 @@
 		A30C5CCF26F332A000227E78 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 1250;
+				LastUpgradeCheck = 1300;
 				TargetAttributes = {
 					A30C5CD626F332A000227E78 = {
 						CreatedOnToolsVersion = 12.5.1;
@@ -271,6 +271,22 @@
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				OTHER_CPLUSPLUSFLAGS = (
+					"$(OTHER_CFLAGS)",
+					"-I/usr/local/include",
+					"-std=c++14",
+					"-fno-exceptions",
+					"-fno-rtti",
+					"-D_DEBUG",
+					"-D__STDC_CONSTANT_MACROS",
+					"-D__STDC_FORMAT_MACROS",
+					"-D__STDC_LIMIT_MACROS",
+				);
+				OTHER_LDFLAGS = (
+					"-L/usr/local/lib",
+					"-Wl,-search_paths_first",
+					"-Wl,-headerpad_max_install_names",
+				);
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -323,6 +339,22 @@
 				MACOSX_DEPLOYMENT_TARGET = 11.3;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				OTHER_CPLUSPLUSFLAGS = (
+					"$(OTHER_CFLAGS)",
+					"-I/usr/local/include",
+					"-std=c++14",
+					"-fno-exceptions",
+					"-fno-rtti",
+					"-D_DEBUG",
+					"-D__STDC_CONSTANT_MACROS",
+					"-D__STDC_FORMAT_MACROS",
+					"-D__STDC_LIMIT_MACROS",
+				);
+				OTHER_LDFLAGS = (
+					"-L/usr/local/lib",
+					"-Wl,-search_paths_first",
+					"-Wl,-headerpad_max_install_names",
+				);
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -330,10 +362,13 @@
 		A30C5CDF26F332A000227E78 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 5T35W28N8A;
 				ENABLE_HARDENED_RUNTIME = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LIBRARY_SEARCH_PATHS = /usr/local/lib;
 				OTHER_LDFLAGS = (
 					"-lLLVMAsmParser",
@@ -352,6 +387,16 @@
 					"-lLLVMMC",
 					"-lLLVMDebugInfoCodeView",
 					"-lLLVMBitReader",
+					"-lLLVMLinker",
+					"-lLLVMTransformUtils",
+					"-lLLVMipo",
+					"-lLLVMInstrumentation",
+					"-lLLVMVectorize",
+					"-lLLVMScalarOpts",
+					"-lLLVMInstCombine",
+					"-lLLVMFrontendOpenMP",
+					"-lLLVMXCoreCodeGen",
+					"-lLLVMAggressiveInstCombine",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SYSTEM_HEADER_SEARCH_PATHS = /usr/local/include;
@@ -361,10 +406,13 @@
 		A30C5CE026F332A000227E78 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 5T35W28N8A;
 				ENABLE_HARDENED_RUNTIME = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LIBRARY_SEARCH_PATHS = /usr/local/lib;
 				OTHER_LDFLAGS = (
 					"-lLLVMAsmParser",
@@ -383,6 +431,16 @@
 					"-lLLVMMC",
 					"-lLLVMDebugInfoCodeView",
 					"-lLLVMBitReader",
+					"-lLLVMLinker",
+					"-lLLVMTransformUtils",
+					"-lLLVMipo",
+					"-lLLVMInstrumentation",
+					"-lLLVMVectorize",
+					"-lLLVMScalarOpts",
+					"-lLLVMInstCombine",
+					"-lLLVMFrontendOpenMP",
+					"-lLLVMXCoreCodeGen",
+					"-lLLVMAggressiveInstCombine",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SYSTEM_HEADER_SEARCH_PATHS = /usr/local/include;

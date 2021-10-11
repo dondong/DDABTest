@@ -10,11 +10,14 @@
 #include <llvm/AsmParser/Parser.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
-#include <llvm/Support/SourceMgr.h>
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/Support/ToolOutputFile.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
+#include <llvm/Linker/Linker.h>
+#include <llvm/Transforms/IPO/Internalize.h>
 #include <system_error>
 
 #define checkValue(ptr, index) (NULL != dyn_cast<ConstantExpr>(ptr->getOperand(index)))
@@ -48,6 +51,110 @@ using namespace llvm;
     DDIRModule *module = [[DDIRModule alloc] init];
     module.path = path;
     return module;
+}
+
++ (void)mergeLLFiles:(nonnull NSArray<NSString *> *)pathes toLLFile:(nonnull NSString *)outputPath
+{
+    if (pathes.count <= 0) {
+        return;
+    }
+    LLVMContext context;
+    auto basePtr = std::make_unique<Module>("DDTool", context);
+    Linker linker(*basePtr);
+    if (NULL != basePtr) {
+        // merge module
+        for (int i = 0; i < pathes.count; ++i) {
+            SMDiagnostic err;
+            std::unique_ptr<Module> ptr = parseAssemblyFile([pathes[i] cStringUsingEncoding:NSUTF8StringEncoding], err, context);
+            if (NULL != ptr) {
+                Module::GlobalListType &globallist = ptr->getGlobalList();
+                for (GlobalVariable &v : globallist) {
+                    if (v.hasSection()) {
+                        if (0 == strncmp(v.getSection().data(), "__DATA,__objc_classlist", 23) ||
+                            0 == strncmp(v.getSection().data(), "__DATA,__objc_catlist", 21)) {
+                            v.setLinkage(GlobalValue::AppendingLinkage);
+                            v.setDSOLocal(false);
+                            if (0 != i) {
+                                [DDIRUtil removeValueFromConstantArray:[DDIRUtil getLlvmCompilerUsedInModule:ptr.get()]
+                                                              constant:std::addressof(v)
+                                                              inModule:ptr.get()];
+                            }
+                        }
+                    }
+                }
+                if (i == 0) {
+                    linker.linkInModule(std::move(ptr), Linker::Flags::OverrideFromSrc);
+                } else {
+                    linker.linkInModule(std::move(ptr), Linker::Flags::None, [](Module &M, const StringSet<> &GVS) {
+                        internalizeModule(M, [&GVS](const GlobalValue &GV) {
+                          return !GV.hasName() || (GVS.count(GV.getName()) == 0);
+                        });
+                      });
+                }
+            }
+        }
+        Module::GlobalListType &globallist = basePtr->getGlobalList();
+        for (GlobalVariable &v : globallist) {
+            if (v.hasSection()) {
+                if (0 == strncmp(v.getSection().data(), "__DATA,__objc_classlist", 23) ||
+                    0 == strncmp(v.getSection().data(), "__DATA,__objc_catlist", 21)) {
+                    v.setLinkage(GlobalValue::PrivateLinkage);
+                }
+            }
+        }
+        
+        Constant *controlValue = ConstantInt::get(Type::getInt32Ty(basePtr->getContext()), 0);
+        GlobalVariable *controlVariable = new GlobalVariable(*basePtr.get(),
+                                                             controlValue->getType(),
+                                                             false,
+                                                             GlobalValue::PrivateLinkage,
+                                                             controlValue,
+                                                             "DD_CONCTROKL_$");
+        
+        NSMutableArray<NSMutableArray<NSString *> *> *mergeFunctions = @[@[@"\01+[DDTestDemo test]", @"\01+[DDTestObject staticMethodTest]"]].mutableCopy;
+        for (NSArray<NSString *> *functions in mergeFunctions) {
+            Function *bf = basePtr->getFunction([functions[0] cStringUsingEncoding:NSUTF8StringEncoding]);
+            Function *baseFun = Function::Create(bf->getFunctionType(), bf->getLinkage(), "test", basePtr.get());
+            BasicBlock *baseBlock = BasicBlock::Create(basePtr->getContext(), "entry", baseFun);
+            BasicBlock *defaultBlock = BasicBlock::Create(basePtr->getContext(), "default", baseFun);
+            IRBuilder<> builder(baseBlock);
+            SwitchInst * inst = builder.CreateSwitch(builder.CreateLoad(controlVariable->getInitializer()->getType(), controlVariable),
+                                                     defaultBlock,
+                                                     (unsigned int)functions.count);
+            uint64_t caseValue = 0;
+            BasicBlock *endBlock = defaultBlock;
+            for (NSString *fun in functions) {
+                Function *f = basePtr->getFunction([fun cStringUsingEncoding:NSUTF8StringEncoding]);
+                std::vector<Type*> ArgTypes;
+                ValueToValueMapTy vmap;
+                Function::arg_iterator old_args = f->arg_begin();
+                for (Function::arg_iterator new_args = baseFun->arg_begin(), new_args_end = baseFun->arg_end(); new_args != new_args_end; new_args++) {
+                    std::pair<Value*,Value*> pair(&*old_args, &*new_args);
+                    vmap.insert(pair);
+                    old_args++;
+                }
+                SmallVector<ReturnInst*, 8> returns;
+                CloneFunctionInto(baseFun, f, vmap, CloneFunctionChangeType::LocalChangesOnly, returns);
+                BasicBlock *last = nullptr;
+                for (BasicBlock &b : baseFun->getBasicBlockList()) {
+                    if (last == endBlock) {
+                        inst->addCase(ConstantInt::get(Type::getInt32Ty(basePtr->getContext()), caseValue), std::addressof(b));
+                        break;
+                    }
+                    last = std::addressof(b);
+                }
+                caseValue++;
+                endBlock = &baseFun->getBasicBlockList().back();
+            }
+        }
+        
+        StringRef output([outputPath cStringUsingEncoding:NSUTF8StringEncoding]);
+        std::error_code ec;
+        raw_fd_stream stream(output, ec);
+        basePtr->print(stream, nullptr);
+        stream.close();
+        basePtr.release();
+    }
 }
 
 - (nullable DDIRModuleData *)getData
@@ -129,16 +236,12 @@ using namespace llvm;
         block(self);
     }
     self.module = NULL;
-    NSString *outputPath = [savePath stringByReplacingOccurrencesOfString:@".ll" withString:@".bc"];
-    StringRef output([outputPath cStringUsingEncoding:NSUTF8StringEncoding]);
+    StringRef output([savePath cStringUsingEncoding:NSUTF8StringEncoding]);
     std::error_code ec;
     raw_fd_stream stream(output, ec);
-    WriteBitcodeToFile(*ptr, stream);
+    ptr->print(stream, nullptr);
     stream.close();
     ptr.release();
-    
-    system([[NSString stringWithFormat:@"/usr/local/bin/llvm-dis %@ %@", outputPath, savePath] cStringUsingEncoding:NSUTF8StringEncoding]);
-    [[NSFileManager defaultManager] removeItemAtPath:outputPath error:NULL];
 }
 
 - (void)addEmptyClass:(nonnull NSString *)className

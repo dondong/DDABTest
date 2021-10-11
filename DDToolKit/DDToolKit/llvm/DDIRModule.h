@@ -22,6 +22,7 @@ NS_ASSUME_NONNULL_BEGIN
 @interface DDIRModule : NSObject
 @property(nonatomic,strong,readonly,nonnull) NSString *path;
 + (nullable instancetype)moduleFromLLPath:(nonnull NSString *)path;
++ (void)mergeLLFiles:(nonnull NSArray<NSString *> *)pathes toLLFile:(nonnull NSString *)outputPath;
 - (nullable DDIRModuleData *)getData;
 
 - (void)executeChangesWithBlock:(void (^_Nullable)(DDIRModule * _Nullable module))block;
