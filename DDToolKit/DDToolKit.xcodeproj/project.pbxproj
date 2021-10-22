@@ -20,6 +20,8 @@
 		A30C5D0026F3330800227E78 /* libc.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = A30C5CFF26F3330500227E78 /* libc.tbd */; };
 		A30C5D0226F3331300227E78 /* libncurses.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = A30C5D0126F3330F00227E78 /* libncurses.tbd */; };
 		A30C5D0426F3331B00227E78 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = A30C5D0326F3331700227E78 /* libz.tbd */; };
+		A3A5F365272144B400326770 /* DDIRModule+Merge.mm in Sources */ = {isa = PBXBuildFile; fileRef = A3A5F364272144B400326770 /* DDIRModule+Merge.mm */; };
+		A3B8DC65271D77BC00E7C76B /* DDIRUtil+Objc.mm in Sources */ = {isa = PBXBuildFile; fileRef = A3B8DC64271D77BC00E7C76B /* DDIRUtil+Objc.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -58,6 +60,11 @@
 		A30C5D0126F3330F00227E78 /* libncurses.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libncurses.tbd; path = usr/lib/libncurses.tbd; sourceTree = SDKROOT; };
 		A30C5D0326F3331700227E78 /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
 		A39DD36126F4444300B1EFF7 /* DDCommonDefine.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DDCommonDefine.h; sourceTree = "<group>"; };
+		A3A5F363272144B400326770 /* DDIRModule+Merge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "DDIRModule+Merge.h"; sourceTree = "<group>"; };
+		A3A5F364272144B400326770 /* DDIRModule+Merge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = "DDIRModule+Merge.mm"; sourceTree = "<group>"; };
+		A3A5F36627214AEF00326770 /* DDIRModule+Private.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "DDIRModule+Private.h"; sourceTree = "<group>"; };
+		A3B8DC63271D77BC00E7C76B /* DDIRUtil+Objc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "DDIRUtil+Objc.h"; sourceTree = "<group>"; };
+		A3B8DC64271D77BC00E7C76B /* DDIRUtil+Objc.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = "DDIRUtil+Objc.mm"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -115,12 +122,17 @@
 				A30C5CEC26F332D600227E78 /* DDIRGlobalVariable.m */,
 				A30C5CF026F332D600227E78 /* DDIRModule.h */,
 				A30C5CED26F332D600227E78 /* DDIRModule.mm */,
+				A3A5F36627214AEF00326770 /* DDIRModule+Private.h */,
+				A3A5F363272144B400326770 /* DDIRModule+Merge.h */,
+				A3A5F364272144B400326770 /* DDIRModule+Merge.mm */,
 				A30C5CEF26F332D600227E78 /* DDIRObjCClass.h */,
 				A30C5CE926F332D600227E78 /* DDIRObjCClass.m */,
 				A30C5CF126F332D600227E78 /* DDIRStringVariable.h */,
 				A30C5CEB26F332D600227E78 /* DDIRStringVariable.m */,
 				A30C5CE826F332D600227E78 /* DDIRUtil.h */,
 				A30C5CEA26F332D600227E78 /* DDIRUtil.mm */,
+				A3B8DC63271D77BC00E7C76B /* DDIRUtil+Objc.h */,
+				A3B8DC64271D77BC00E7C76B /* DDIRUtil+Objc.mm */,
 			);
 			path = llvm;
 			sourceTree = "<group>";
@@ -204,10 +216,12 @@
 				A30C5CF726F332D600227E78 /* DDIRUtil.mm in Sources */,
 				A30C5CF426F332D600227E78 /* DDABTestTool.m in Sources */,
 				A30C5CF626F332D600227E78 /* DDIRObjCClass.m in Sources */,
+				A3B8DC65271D77BC00E7C76B /* DDIRUtil+Objc.mm in Sources */,
 				A30C5CF526F332D600227E78 /* DDStaticLibrary.m in Sources */,
 				A30C5CF326F332D600227E78 /* main.mm in Sources */,
 				A30C5CF826F332D600227E78 /* DDIRStringVariable.m in Sources */,
 				A30C5CFA26F332D600227E78 /* DDIRModule.mm in Sources */,
+				A3A5F365272144B400326770 /* DDIRModule+Merge.mm in Sources */,
 				A30C5CFB26F332D600227E78 /* DDIRFunction.m in Sources */,
 				A30C5CF926F332D600227E78 /* DDIRGlobalVariable.m in Sources */,
 			);

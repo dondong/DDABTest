@@ -14,10 +14,6 @@
 @implementation DDABTest
 + (void)load
 {
-    NSArray *settings = [NSArray arrayWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"DDABTestSettings" ofType:@"plist"]];
-    NSDictionary *configs = [NSDictionary dictionaryWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"DDABTestConfiguration" ofType:@"plist"]];
-    NSMutableDictionary<NSString *, NSMutableDictionary<NSString *, NSValue *> *> *classDic    = [NSMutableDictionary dictionary];
-    NSMutableDictionary<NSString *, NSMutableDictionary<NSString *, NSValue *> *> *categoryDic = [NSMutableDictionary dictionary];
     
     struct dd_macho *macho = NULL;
     for (int i = 0; i < _dyld_image_count(); ++i) {
@@ -30,65 +26,94 @@
     if (NULL == macho) {
         return;
     }
-    for (NSDictionary *dic in settings) {
-        NSString *clsSection = configs[dic[DDConfigModuleNameKey]][dic[DDConfigTagKey]][DDModuleClassSectionKey];
-        NSString *catSection = configs[dic[DDConfigModuleNameKey]][dic[DDConfigTagKey]][DDModuleCategorySectionKey];
-        if (nil == clsSection && nil == catSection) {
-            continue;
-        }
-        for (int i = 0; i < macho->msegments; ++i) {
-            struct dd_macho_segment segment = macho->segments[i];
-            if (0 == strcmp(segment.seg_name, "__DATA_CONST") ||
-                0 == strcmp(segment.seg_name, "__DATA")) {
-                for (int j = 0; j < segment.msections; ++j) {
-                    // class
-                    if (0 == strcmp(segment.sections[j].sect_name, "__objc_classlist") ||
-                        0 == strcmp(segment.sections[j].sect_name, [clsSection cStringUsingEncoding:NSUTF8StringEncoding])) {
-                        uintptr_t *bast_ptr = (uintptr_t *)segment.sections[j].addr;
-                        int class_count = (int)segment.sections[j].size / sizeof(uintptr_t);
-                        NSMutableDictionary *d = [NSMutableDictionary dictionaryWithCapacity:class_count];
-                        [classDic setObject:d forKey:[NSString stringWithCString:segment.sections[j].sect_name encoding:NSUTF8StringEncoding]];
-                        for (int k = 0; k < class_count; ++k) {
-                            char *class_ptr = (char *)*(bast_ptr + k);
-                            NSString *name = [NSString stringWithCString:_getClassName(class_ptr) encoding:NSUTF8StringEncoding];
-                            if (nil != name) {
-                                [d setObject:[NSValue valueWithPointer:class_ptr] forKey:name];
-                            }
-                        }
-                    }
-                    // category
-                    if (0 == strcmp(segment.sections[j].sect_name, "__objc_catlist") ||
-                        0 == strcmp(segment.sections[j].sect_name, [catSection cStringUsingEncoding:NSUTF8StringEncoding])) {
-                        uintptr_t *bast_ptr = (uintptr_t *)segment.sections[j].addr;
-                        int category_count = (int)segment.sections[j].size / sizeof(uintptr_t);
-                        NSMutableDictionary *d = [NSMutableDictionary dictionaryWithCapacity:category_count];
-                        [categoryDic setObject:d forKey:[NSString stringWithCString:segment.sections[j].sect_name encoding:NSUTF8StringEncoding]];
-                        for (int k = 0; k < category_count; ++k) {
-                            char *cat_ptr = (char *)*(bast_ptr + k);
-                            NSString *name = [NSString stringWithFormat:@"%s(%s)", _getCategoryClassName(cat_ptr), _getCategoryName(cat_ptr)];
-                            [d setObject:[NSValue valueWithPointer:cat_ptr] forKey:name];
-                        }
-                    }
+    for (int i = 0; i < macho->msegments; ++i) {
+        struct dd_macho_segment segment = macho->segments[i];
+        if (0 == strcmp(segment.seg_name, "__DATA")) {
+            for (int j = 0; j < segment.msections; ++j) {
+                if (0 == strcmp(segment.sections[j].sect_name, "__dd_control")) {
+                    uint64_t *bast_ptr = (uint64_t *)segment.sections[j].addr;
+                    *bast_ptr = 1;
+                    break;
                 }
-            }
-        }
-        for (NSDictionary<NSString *, NSString *> *c in configs[dic[DDConfigModuleNameKey]][dic[DDConfigTagKey]][DDModuleClassKey]) {
-            char *dstClass = [classDic[@"__objc_classlist"][c[DDItemDstKey]] pointerValue];
-            char *srcClass = [classDic[clsSection][c[DDItemSrcKey]] pointerValue];
-            if (NULL != dstClass && NULL != srcClass) {
-                _copyClass(srcClass, dstClass);
-            }
-        }
-        return;
-        for (NSDictionary<NSString *, NSString *> *c in configs[dic[DDConfigModuleNameKey]][dic[DDConfigTagKey]][DDModuleCategoryKey]) {
-            char *dstCategory = [categoryDic[@"__objc_catlist"][c[DDItemDstKey]] pointerValue];
-            char *srcCategory = [categoryDic[catSection][c[DDItemSrcKey]] pointerValue];
-            if (NULL != dstCategory && NULL != srcCategory) {
-                _copyCategory(srcCategory, dstCategory);
             }
         }
     }
     dd_delete_macho(macho);
+//    NSArray *settings = [NSArray arrayWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"DDABTestSettings" ofType:@"plist"]];
+//    NSDictionary *configs = [NSDictionary dictionaryWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"DDABTestConfiguration" ofType:@"plist"]];
+//    NSMutableDictionary<NSString *, NSMutableDictionary<NSString *, NSValue *> *> *classDic    = [NSMutableDictionary dictionary];
+//    NSMutableDictionary<NSString *, NSMutableDictionary<NSString *, NSValue *> *> *categoryDic = [NSMutableDictionary dictionary];
+//
+//    struct dd_macho *macho = NULL;
+//    for (int i = 0; i < _dyld_image_count(); ++i) {
+//        NSString *name = [NSString stringWithFormat:@"%s", _dyld_get_image_name(i)];
+//        if ([[name stringByDeletingLastPathComponent] hasSuffix:@".app"]) {
+//            macho = dd_copy_macho_at_index(i);
+//            break;
+//        }
+//    }
+//    if (NULL == macho) {
+//        return;
+//    }
+//    for (NSDictionary *dic in settings) {
+//        NSString *clsSection = configs[dic[DDConfigModuleNameKey]][dic[DDConfigTagKey]][DDModuleClassSectionKey];
+//        NSString *catSection = configs[dic[DDConfigModuleNameKey]][dic[DDConfigTagKey]][DDModuleCategorySectionKey];
+//        if (nil == clsSection && nil == catSection) {
+//            continue;
+//        }
+//        for (int i = 0; i < macho->msegments; ++i) {
+//            struct dd_macho_segment segment = macho->segments[i];
+//            if (0 == strcmp(segment.seg_name, "__DATA_CONST") ||
+//                0 == strcmp(segment.seg_name, "__DATA")) {
+//                for (int j = 0; j < segment.msections; ++j) {
+//                    // class
+//                    if (0 == strcmp(segment.sections[j].sect_name, "__objc_classlist") ||
+//                        0 == strcmp(segment.sections[j].sect_name, [clsSection cStringUsingEncoding:NSUTF8StringEncoding])) {
+//                        uintptr_t *bast_ptr = (uintptr_t *)segment.sections[j].addr;
+//                        int class_count = (int)segment.sections[j].size / sizeof(uintptr_t);
+//                        NSMutableDictionary *d = [NSMutableDictionary dictionaryWithCapacity:class_count];
+//                        [classDic setObject:d forKey:[NSString stringWithCString:segment.sections[j].sect_name encoding:NSUTF8StringEncoding]];
+//                        for (int k = 0; k < class_count; ++k) {
+//                            char *class_ptr = (char *)*(bast_ptr + k);
+//                            NSString *name = [NSString stringWithCString:_getClassName(class_ptr) encoding:NSUTF8StringEncoding];
+//                            if (nil != name) {
+//                                [d setObject:[NSValue valueWithPointer:class_ptr] forKey:name];
+//                            }
+//                        }
+//                    }
+//                    // category
+//                    if (0 == strcmp(segment.sections[j].sect_name, "__objc_catlist") ||
+//                        0 == strcmp(segment.sections[j].sect_name, [catSection cStringUsingEncoding:NSUTF8StringEncoding])) {
+//                        uintptr_t *bast_ptr = (uintptr_t *)segment.sections[j].addr;
+//                        int category_count = (int)segment.sections[j].size / sizeof(uintptr_t);
+//                        NSMutableDictionary *d = [NSMutableDictionary dictionaryWithCapacity:category_count];
+//                        [categoryDic setObject:d forKey:[NSString stringWithCString:segment.sections[j].sect_name encoding:NSUTF8StringEncoding]];
+//                        for (int k = 0; k < category_count; ++k) {
+//                            char *cat_ptr = (char *)*(bast_ptr + k);
+//                            NSString *name = [NSString stringWithFormat:@"%s(%s)", _getCategoryClassName(cat_ptr), _getCategoryName(cat_ptr)];
+//                            [d setObject:[NSValue valueWithPointer:cat_ptr] forKey:name];
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//        for (NSDictionary<NSString *, NSString *> *c in configs[dic[DDConfigModuleNameKey]][dic[DDConfigTagKey]][DDModuleClassKey]) {
+//            char *dstClass = [classDic[@"__objc_classlist"][c[DDItemDstKey]] pointerValue];
+//            char *srcClass = [classDic[clsSection][c[DDItemSrcKey]] pointerValue];
+//            if (NULL != dstClass && NULL != srcClass) {
+//                _copyClass(srcClass, dstClass);
+//            }
+//        }
+//        return;
+//        for (NSDictionary<NSString *, NSString *> *c in configs[dic[DDConfigModuleNameKey]][dic[DDConfigTagKey]][DDModuleCategoryKey]) {
+//            char *dstCategory = [categoryDic[@"__objc_catlist"][c[DDItemDstKey]] pointerValue];
+//            char *srcCategory = [categoryDic[catSection][c[DDItemSrcKey]] pointerValue];
+//            if (NULL != dstCategory && NULL != srcCategory) {
+//                _copyCategory(srcCategory, dstCategory);
+//            }
+//        }
+//    }
+//    dd_delete_macho(macho);
 }
 
 struct cache_t {

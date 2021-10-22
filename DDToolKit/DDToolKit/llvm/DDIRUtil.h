@@ -10,31 +10,26 @@
 #include <llvm/IR/Constants.h>
 
 NS_ASSUME_NONNULL_BEGIN
-extern const char *IR_Ojbc_ClassTypeName;
-extern const char *IR_Ojbc_CacheTypeName;
-extern const char *IR_Ojbc_RoTypeName;
-extern const char *IR_Ojbc_MethodListTypeName;
-extern const char *IR_Ojbc_MethodTypeName;
-extern const char *IR_Ojbc_ProtocolListTypeName;
-extern const char *IR_Ojbc_ProtocolTypeName;
-extern const char *IR_Ojbc_IvarListTypeName;
-extern const char *IR_Ojbc_IvarTypeName;
-extern const char *IR_Ojbc_PropListTypeName;
-extern const char *IR_Ojbc_PropTypeName;
-extern const char *IR_Ojbc_CategoryTypeName;
-
-
 
 @interface DDIRUtil : NSObject
-+ (nonnull NSDictionary<NSString *, NSValue *> *)getObjcClassTypeInModule:(llvm::Module * _Nonnull)module;
-+ (nonnull NSDictionary<NSString *, NSValue *> *)getObjcCategoryTypeInModule:(llvm::Module * _Nonnull)module;
-+ (llvm::GlobalVariable * _Nullable)getObjcClass:(nonnull NSString *)className
-                                        inModule:(llvm::Module * _Nonnull)module;
-+ (llvm:: GlobalVariable * _Nullable)getCategory:(nonnull NSString *)categoryName
-                                    forObjcClass:(nonnull NSString *)className
-                                        inModule:(llvm::Module * _Nonnull)module;
+// check
+bool isNullValue(llvm::GlobalVariable * _Nonnull var, int index);
+llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index);
+// get
 + (llvm::GlobalVariable * _Nonnull)getLlvmCompilerUsedInModule:(llvm::Module * _Nonnull)module;
-+ (llvm::StructType * _Nullable)getStructType:(const char *)name inModule:(llvm::Module * _Nonnull)module;
++ (llvm::StructType * _Nullable)getStructType:(const char * _Nonnull)name inModule:(llvm::Module * _Nonnull)module;
+// create
++ (llvm::GlobalVariable * _Nonnull)createGlobalVariableName:(const char * _Nonnull)name
+                                         fromGlobalVariable:(llvm::GlobalVariable * _Nonnull)other
+                                                       type:(llvm::Type * _Nullable)type
+                                                initializer:(llvm::Constant * _Nullable)initializer
+                                                   inModule:(llvm::Module * _Nonnull)module;
+
+// remove
++ (void)removeGlobalValue:(llvm::GlobalValue * _Nonnull)var inModule:(llvm::Module * _Nonnull)module;
+// modify
++ (void)replaceGlobalVariable:(llvm::GlobalVariable * _Nonnull)var1
+                         with:(llvm::GlobalVariable * _Nonnull)var2;
 + (nonnull NSString *)changeGlobalValueName:(llvm::GlobalValue * _Nonnull)variable
                                        from:(nonnull NSString *)oldName
                                          to:(nonnull NSString *)newName;
@@ -42,11 +37,11 @@ extern const char *IR_Ojbc_CategoryTypeName;
                 atOperand:(NSUInteger)index
                        to:(nonnull NSString *)newValue
                  inModule:(llvm::Module * _Nonnull)module;
-+ (llvm::GlobalVariable * _Nonnull)insertValue:(llvm::Constant * _Nonnull)value toConstantArray:(llvm::GlobalVariable * _Nonnull)variable at:(NSUInteger)index inModule:(llvm::Module * _Nonnull)module;
-+ (llvm::GlobalVariable *_Nonnull)removeValueFromConstantArray:(llvm::GlobalVariable *_Nonnull)variable constant:(llvm::Constant *_Nonnull)constant inModule:(llvm::Module * _Nonnull)module;
-+ (llvm::GlobalVariable *_Nonnull)removeValueFromConstantArray:(llvm::GlobalVariable *_Nonnull)variable at:(NSUInteger)index inModule:(llvm::Module * _Nonnull)module;
-+ (nonnull NSString *)stringFromArray:(llvm::ConstantDataArray * _Nonnull)array;
-+ (nonnull NSString *)classNameFromGlobalVariable:(llvm::GlobalVariable * _Nonnull)cls;
++ (llvm::GlobalVariable * _Nonnull)insertValue:(llvm::Constant * _Nonnull)value toGlobalArray:(llvm::GlobalVariable * _Nonnull)variable at:(NSUInteger)index inModule:(llvm::Module * _Nonnull)module;
++ (llvm::GlobalVariable *_Nonnull)removeValue:(llvm::Constant *_Nonnull)var fromGlobalArray:(llvm::GlobalVariable *_Nonnull)variable inModule:(llvm::Module * _Nonnull)module;
++ (llvm::GlobalVariable *_Nonnull)removeValueAtIndex:(NSUInteger)index fromGlobalArray:(llvm::GlobalVariable *_Nonnull)variable  inModule:(llvm::Module * _Nonnull)module;
+// atributes
++ (nonnull NSString *)stringFromGlobalVariable:(llvm::GlobalVariable * _Nonnull)var;
 @end
 
 NS_ASSUME_NONNULL_END

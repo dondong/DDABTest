@@ -6,6 +6,7 @@
 //
 
 #import "DDStaticLibrary.h"
+#import "DDIRModule+Merge.h"
 
 @interface DDStaticLibrary()
 @property(nonatomic,strong,readwrite,nonnull) NSString *path;
@@ -58,7 +59,7 @@
         system([[NSString stringWithFormat:@"tar -xf %@ -C %@", path, library.tmpPath] cStringUsingEncoding:NSUTF8StringEncoding]);
     }
     
-    NSMutableArray *moduleList = [[NSMutableArray alloc] init];
+    NSMutableArray *moduleList = [NSMutableArray array];
     for (NSString *p in [[NSFileManager defaultManager] subpathsAtPath:library.tmpPath]) {
         if ([[[p pathExtension] lowercaseString] isEqualToString:@"o"]) {
             NSString *ofilePath = [library.tmpPath stringByAppendingPathComponent:p];
