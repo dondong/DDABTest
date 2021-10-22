@@ -8,9 +8,15 @@
 #import "DDABTestTool.h"
 #import "DDCommonDefine.h"
 #import "DDStaticLibrary.h"
+#import "DDIRModule+Merge.h"
+#import <objc/runtime.h>
 
 @interface DDStaticLibraryInfo()
 @property(nonatomic,strong) DDStaticLibrary *lib;
+@end
+
+@interface DDStaticLibrary(DDABTestTool)
+@property(nonatomic,strong) DDIRModuleData *data;
 @end
 
 
@@ -33,16 +39,20 @@
             defaultInfo = i;
         }
         i.lib = [DDStaticLibrary libraryFromPath:i.path tempDir:info.tempDirectory];
-        maxClsCount = MAX(maxClsCount, i.lib.classList.count);
-        maxCatCount = MAX(maxCatCount, i.lib.categoryList.count);
+        [i.lib.module executeChangesWithBlock:^(DDIRModule * _Nullable module) {
+            [module mergeObjcData];
+        }];
+        i.lib.data = [i.lib.module getData];
+        maxClsCount = MAX(maxClsCount, i.lib.data.objcClassList.count);
+        maxCatCount = MAX(maxCatCount, i.lib.data.objcCategoryList.count);
     }
-    assert(NULL != defaultInfo && defaultInfo.lib.moduleList.count > 0);
+    assert(NULL != defaultInfo);
     // add empty
-    NSUInteger emptyClsCount = maxClsCount - defaultInfo.lib.classList.count;
+    NSUInteger emptyClsCount = maxClsCount - defaultInfo.lib.data.objcClassList.count;
     NSMutableArray<NSString *> *emptyClasses = [NSMutableArray arrayWithCapacity:emptyClsCount];
-    NSUInteger emptyCatCount = maxCatCount - defaultInfo.lib.categoryList.count;
+    NSUInteger emptyCatCount = maxCatCount - defaultInfo.lib.data.objcCategoryList.count;
     NSMutableArray<NSString *> *emptyCategories = [NSMutableArray arrayWithCapacity:emptyCatCount];
-    [defaultInfo.lib.moduleList[0] executeChangesWithBlock:^(DDIRModule * _Nullable module) {
+    [defaultInfo.lib.module executeChangesWithBlock:^(DDIRModule * _Nullable module) {
         for (int i = 0; i < emptyClsCount; ++i) {
             NSString *n = [self _getNewEmptyClassName];
             [module addEmptyClass:n];
@@ -56,29 +66,27 @@
         }
     }];
     
-   NSMutableArray *llfilePathes = [NSMutableArray array];
-   for (DDIRModule *m in defaultInfo.lib.moduleList) {
-       [llfilePathes addObject:m.path];
-   }
+    NSMutableArray *llfilePathes = [NSMutableArray array];
+    [llfilePathes addObject:defaultInfo.lib.module.path];
     NSMutableDictionary *config = [NSMutableDictionary dictionary];
     [outputConfig setObject:config forKey:info.moduleName];
-    NSMutableDictionary *classDic = [NSMutableDictionary dictionaryWithCapacity:defaultInfo.lib.classList.count];
-    for (DDIRObjCClass *cls in defaultInfo.lib.classList) {
+    NSMutableDictionary *classDic = [NSMutableDictionary dictionaryWithCapacity:defaultInfo.lib.data.objcClassList.count];
+    for (DDIRObjCClass *cls in defaultInfo.lib.data.objcClassList) {
         [classDic setObject:cls forKey:cls.className];
     }
-    NSMutableDictionary *categoryDic = [NSMutableDictionary dictionaryWithCapacity:defaultInfo.lib.categoryList.count];
-    for (DDIRObjCCategory *cat in defaultInfo.lib.categoryList) {
+    NSMutableDictionary *categoryDic = [NSMutableDictionary dictionaryWithCapacity:defaultInfo.lib.data.objcClassList.count];
+    for (DDIRObjCCategory *cat in defaultInfo.lib.data.objcCategoryList) {
         [categoryDic setObject:cat forKey:[NSString stringWithFormat:@"%@(%@)", cat.isa.className, cat.categoryName]];
     }
     for (DDStaticLibraryInfo *i in info.inputLibraries) {
         if (i != defaultInfo) {
             
-            NSMutableDictionary *clsDic2 = [NSMutableDictionary dictionaryWithCapacity:i.lib.classList.count];
-            for (DDIRObjCClass *cls in i.lib.classList) {
+            NSMutableDictionary *clsDic2 = [NSMutableDictionary dictionaryWithCapacity:i.lib.data.objcClassList.count];
+            for (DDIRObjCClass *cls in i.lib.data.objcClassList) {
                 [clsDic2 setObject:cls forKey:cls.className];
             }
-            NSMutableDictionary *catDic2 = [NSMutableDictionary dictionaryWithCapacity:i.lib.categoryList.count];
-            for (DDIRObjCCategory *cat in i.lib.categoryList) {
+            NSMutableDictionary *catDic2 = [NSMutableDictionary dictionaryWithCapacity:i.lib.data.objcClassList.count];
+            for (DDIRObjCCategory *cat in i.lib.data.objcCategoryList) {
                 [catDic2 setObject:cat forKey:[NSString stringWithFormat:@"%@(%@)", cat.isa.className, cat.categoryName]];
             }
             
@@ -133,47 +141,46 @@
             [c setObject:catSectionName forKey:DDModuleCategorySectionKey];
             [c setObject:clsArray forKey:DDModuleClassKey];
             [c setObject:catArray forKey:DDModuleCategoryKey];
-            for (DDIRModule *m in i.lib.moduleList) {
-                NSString *n = [m.path lastPathComponent];
-                NSString *p = [[m.path stringByDeletingLastPathComponent] stringByAppendingPathComponent:[[n stringByDeletingPathExtension] stringByAppendingString:@"_tmp.ll"]];
-                [llfilePathes addObject:p];
-                [m executeChangesWithSavePath:p block:^(DDIRModule * _Nullable module) {
-                    // class
-                    for (DDIRObjCClass *cls in comClsArray) {
-                        NSString *newName = [cls.className stringByAppendingFormat:@"_%@", i.tag];
-                        if ([module replaceObjcClass:cls.className  withNewComponentName:newName]) {
-                            [module moveClass:cls.className to:[NSString stringWithFormat:@"__DATA,%@", clsSectionName]];
-                            [clsArray addObject:@{DDItemSrcKey: cls.className,
-                                                  DDItemDstKey: cls.className}];
-                        }
+            DDIRModule *m = i.lib.module;
+            NSString *n = [m.path lastPathComponent];
+            NSString *p = [[m.path stringByDeletingLastPathComponent] stringByAppendingPathComponent:[[n stringByDeletingPathExtension] stringByAppendingString:@"_tmp.ll"]];
+            [llfilePathes addObject:p];
+            [m executeChangesWithSavePath:p block:^(DDIRModule * _Nullable module) {
+                // class
+                for (DDIRObjCClass *cls in comClsArray) {
+                    NSString *newName = [cls.className stringByAppendingFormat:@"_%@", i.tag];
+                    if ([module replaceObjcClass:cls.className  withNewComponentName:newName]) {
+                        [module moveClass:cls.className to:[NSString stringWithFormat:@"__DATA,%@", clsSectionName]];
+                        [clsArray addObject:@{DDItemSrcKey: cls.className,
+                                              DDItemDstKey: cls.className}];
                     }
-                    for (int i = 0; i < clsArray2.count; ++i) {
-                        DDIRObjCClass *cls = clsArray2[i];
-                        NSString *targetName = (i < clsArray1.count ? [clsArray1[i] className] : emptyClasses[i - clsArray1.count]);
-                        if ([module moveClass:cls.className to:[NSString stringWithFormat:@"__DATA,%@", clsSectionName]]) {
-                            [clsArray addObject:@{DDItemSrcKey: targetName,
-                                                  DDItemDstKey: cls.className}];
-                        }
+                }
+                for (int i = 0; i < clsArray2.count; ++i) {
+                    DDIRObjCClass *cls = clsArray2[i];
+                    NSString *targetName = (i < clsArray1.count ? [clsArray1[i] className] : emptyClasses[i - clsArray1.count]);
+                    if ([module moveClass:cls.className to:[NSString stringWithFormat:@"__DATA,%@", clsSectionName]]) {
+                        [clsArray addObject:@{DDItemSrcKey: targetName,
+                                              DDItemDstKey: cls.className}];
                     }
-                    // category
-                    for (DDIRObjCCategory *cat in comCatArray) {
-                        NSString *newName = [cat.categoryName stringByAppendingFormat:@"_%@", i.tag];
-                        if ([module replaceCategory:cat.categoryName forObjcClass:cat.isa.className withNewComponentName:newName]) {
-                            [module moveCategory:cat.categoryName forObjcClass:cat.isa.className to:[NSString stringWithFormat:@"__DATA,%@", catSectionName]];
-                            [catArray addObject:@{DDItemSrcKey: [NSString stringWithFormat:@"%@(%@)", cat.isa.className, cat.categoryName],
-                                                  DDItemDstKey: [NSString stringWithFormat:@"%@(%@)", cat.isa.className, cat.categoryName]}];
-                        }
+                }
+                // category
+                for (DDIRObjCCategory *cat in comCatArray) {
+                    NSString *newName = [cat.categoryName stringByAppendingFormat:@"_%@", i.tag];
+                    if ([module replaceCategory:cat.categoryName forObjcClass:cat.isa.className withNewComponentName:newName]) {
+                        [module moveCategory:cat.categoryName forObjcClass:cat.isa.className to:[NSString stringWithFormat:@"__DATA,%@", catSectionName]];
+                        [catArray addObject:@{DDItemSrcKey: [NSString stringWithFormat:@"%@(%@)", cat.isa.className, cat.categoryName],
+                                              DDItemDstKey: [NSString stringWithFormat:@"%@(%@)", cat.isa.className, cat.categoryName]}];
                     }
-                    for (int i = 0; i < catArray2.count; ++i) {
-                        DDIRObjCCategory *cat = catArray2[i];
-                        NSString *targetName = (i < catArray1.count ? [NSString stringWithFormat:@"%@(%@)", [[catArray1[i] isa] className], [catArray1[i] categoryName]] : emptyCategories[i - catArray1.count]);
-                        if ([module moveCategory:cat.categoryName forObjcClass:cat.isa.className to:[NSString stringWithFormat:@"__DATA,%@", catSectionName]]) {
-                            [catArray addObject:@{DDItemSrcKey: targetName,
-                                                  DDItemDstKey: [NSString stringWithFormat:@"%@(%@)", cat.isa.className, cat.categoryName]}];
-                        }
+                }
+                for (int i = 0; i < catArray2.count; ++i) {
+                    DDIRObjCCategory *cat = catArray2[i];
+                    NSString *targetName = (i < catArray1.count ? [NSString stringWithFormat:@"%@(%@)", [[catArray1[i] isa] className], [catArray1[i] categoryName]] : emptyCategories[i - catArray1.count]);
+                    if ([module moveCategory:cat.categoryName forObjcClass:cat.isa.className to:[NSString stringWithFormat:@"__DATA,%@", catSectionName]]) {
+                        [catArray addObject:@{DDItemSrcKey: targetName,
+                                              DDItemDstKey: [NSString stringWithFormat:@"%@(%@)", cat.isa.className, cat.categoryName]}];
                     }
-                }];
-            }
+                }
+            }];
         }
     }
     
@@ -262,6 +269,17 @@
 }
 @end
 
-
 @implementation DDABTestInfo
+@end
+
+@implementation DDStaticLibrary(DDABTestTool)
+const char *DDStaticLibrary_DataKey = "DDStaticLibrary_Data";
+- (void)setData:(DDIRModuleData *)data
+{
+    objc_setAssociatedObject(self, DDStaticLibrary_DataKey, data, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+- (DDIRModuleData *)data
+{
+    return objc_getAssociatedObject(self, DDStaticLibrary_DataKey);
+}
 @end

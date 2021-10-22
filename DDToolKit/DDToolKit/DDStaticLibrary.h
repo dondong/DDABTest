@@ -13,10 +13,7 @@ NS_ASSUME_NONNULL_BEGIN
 @interface DDStaticLibrary : NSObject
 @property(nonatomic,strong,readonly,nonnull) NSString *path;
 @property(nonatomic,strong,readonly,nonnull) NSArray<NSString *> *architectures;
-@property(nonatomic,strong,readonly,nonnull) NSArray<NSString *> *ofilePathes;
-@property(nonatomic,strong,readonly,nonnull) NSArray<DDIRModule *> *moduleList;
-@property(nonatomic,strong,readonly,nonnull) NSArray<DDIRObjCClass *> *classList;
-@property(nonatomic,strong,readonly,nonnull) NSArray<DDIRObjCCategory *> *categoryList;
+@property(nonatomic,strong,readonly,nonnull) DDIRModule *module;
 + (nullable instancetype)libraryFromPath:(nonnull NSString *)path tempDir:(nonnull NSString *)tempDir;
 - (void)clear;
 @end

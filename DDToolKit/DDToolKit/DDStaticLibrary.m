@@ -12,10 +12,7 @@
 @property(nonatomic,strong,readwrite,nonnull) NSString *path;
 @property(nonatomic,strong,readwrite,nonnull) NSString *tmpPath;
 @property(nonatomic,strong,readwrite,nonnull) NSArray<NSString *> *architectures;
-@property(nonatomic,strong,readwrite,nonnull) NSArray<NSString *> *ofilePathes;
-@property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRModule *> *moduleList;
-@property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRObjCClass *> *classList;
-@property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRObjCCategory *> *categoryList;
+@property(nonatomic,strong,readwrite,nonnull) DDIRModule *module;
 @end
 
 @implementation DDStaticLibrary
@@ -59,6 +56,7 @@
         system([[NSString stringWithFormat:@"tar -xf %@ -C %@", path, library.tmpPath] cStringUsingEncoding:NSUTF8StringEncoding]);
     }
     
+    NSMutableArray *llPathList = [NSMutableArray array];
     NSMutableArray *moduleList = [NSMutableArray array];
     for (NSString *p in [[NSFileManager defaultManager] subpathsAtPath:library.tmpPath]) {
         if ([[[p pathExtension] lowercaseString] isEqualToString:@"o"]) {
@@ -67,25 +65,29 @@
             NSString *llPath = [[ofilePath stringByDeletingPathExtension] stringByAppendingPathExtension:@"ll"];
             system([[NSString stringWithFormat:@"segedit %@ -extract __LLVM __bitcode %@", ofilePath, bcPath] cStringUsingEncoding:NSUTF8StringEncoding]);
             system([[NSString stringWithFormat:@"/usr/local/bin/llvm-dis %@ %@", bcPath, llPath] cStringUsingEncoding:NSUTF8StringEncoding]);
-            DDIRModule *module = [DDIRModule moduleFromLLPath:llPath];
-            if (nil != module) {
-                [moduleList addObject:module];
-            }
+//            DDIRModule *module = [DDIRModule moduleFromLLPath:llPath];
+//            if (nil != module) {
+//                [moduleList addObject:module];
+//            }
+            [llPathList addObject:llPath];
             [[NSFileManager defaultManager] removeItemAtPath:ofilePath error:NULL];
             [[NSFileManager defaultManager] removeItemAtPath:bcPath error:NULL];
         }
     }
-    library.moduleList = [NSArray arrayWithArray:moduleList];
+//    library.moduleList = [NSArray arrayWithArray:moduleList];
+    NSString *llPath = [library.tmpPath stringByAppendingPathComponent:[[library.path.lastPathComponent stringByDeletingPathExtension] stringByAppendingPathExtension:@"ll"]];
+    [DDIRModule mergeLLFiles:llPathList toLLFile:llPath];
+    library.module = [DDIRModule moduleFromLLPath:llPath];
 
-    NSMutableArray *classList = [[NSMutableArray alloc] init];
-    NSMutableArray *categoryList = [[NSMutableArray alloc] init];
-    for (DDIRModule *module in library.moduleList) {
-        DDIRModuleData *data = [module getData];
-        [classList addObjectsFromArray:data.objcClassList];
-        [categoryList addObjectsFromArray:data.objcCategoryList];
-    }
-    library.classList = [NSArray arrayWithArray:classList];
-    library.categoryList = [NSArray arrayWithArray:categoryList];
+//    NSMutableArray *classList = [[NSMutableArray alloc] init];
+//    NSMutableArray *categoryList = [[NSMutableArray alloc] init];
+//    for (DDIRModule *module in library.moduleList) {
+//        DDIRModuleData *data = [module getData];
+//        [classList addObjectsFromArray:data.objcClassList];
+//        [categoryList addObjectsFromArray:data.objcCategoryList];
+//    }
+//    library.classList = [NSArray arrayWithArray:classList];
+//    library.categoryList = [NSArray arrayWithArray:categoryList];
     return library;
 }
 
