@@ -9,7 +9,7 @@
 #import "DDTestChildObjectA.h"
 #import "DDTestChildObjectB.h"
 #import "NSObject+Category.h"
-#import "DDTestObject+Category.h"
+#import "DDProtocolObject.h"
 
 @implementation DDTestDemo
 + (void)test
@@ -25,14 +25,15 @@
     DDTestChildObjectB *b = [[DDTestChildObjectB alloc] init];
     [b instanceMethodTest];
     
-    
     DDLog(@"Category");
     [NSObject categoryStaticTest];
     NSObject *o = [[NSObject alloc] init];
     [o categoryInstanceTest];
-    [DDTestObject categoryStaticTest];
-    DDTestObject *o1 = [[DDTestObject alloc] init];
-    [o1 categoryInstanceTest];
+    
+    DDLog(@"Procotol");
+    [DDProtocolObject protocolClassTest];
+    id<DDProtocol> p = [[DDProtocolObject alloc] init];
+    [p protocolInstanceTest];
     
 #if DemoTarget==1
 #else

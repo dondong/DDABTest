@@ -76,7 +76,7 @@
     }
 //    library.moduleList = [NSArray arrayWithArray:moduleList];
     NSString *llPath = [library.tmpPath stringByAppendingPathComponent:[[library.path.lastPathComponent stringByDeletingPathExtension] stringByAppendingPathExtension:@"ll"]];
-    [DDIRModule mergeLLFiles:llPathList toLLFile:llPath];
+    [DDIRModule linkLLFiles:llPathList toLLFile:llPath];
     library.module = [DDIRModule moduleFromLLPath:llPath];
 
 //    NSMutableArray *classList = [[NSMutableArray alloc] init];

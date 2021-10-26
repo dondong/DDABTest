@@ -9,6 +9,7 @@
 #import "DDABTestTool.h"
 #import "DDStaticLibrary.h"
 #import "DDIRModule.h"
+#import "DDIRModule+Merge.h"
 
 int main(int argc, const char * argv[]) {
     @autoreleasepool {

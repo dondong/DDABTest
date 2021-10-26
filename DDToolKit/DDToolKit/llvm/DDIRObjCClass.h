@@ -18,8 +18,11 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface DDIRObjCProtocol : DDIRGlobalVariable
 @property(nonatomic,strong,nonnull) NSString *protocolName;
+@property(nonatomic,strong,nullable) NSArray<DDIRObjCProtocol *> *protocolList;
 @property(nonatomic,strong,nullable) NSArray<DDIRObjCMethod *> *instanceMethodList;
 @property(nonatomic,strong,nullable) NSArray<DDIRObjCMethod *> *classMethodList;
+@property(nonatomic,strong,nullable) NSArray<DDIRObjCMethod *> *optionalInstanceMethodList;
+@property(nonatomic,strong,nullable) NSArray<DDIRObjCMethod *> *optionalClassMethodList;
 @end
 
 typedef NS_ENUM(NSInteger, DDIRObjCClassType) {

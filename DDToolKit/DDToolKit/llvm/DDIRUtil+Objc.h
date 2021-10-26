@@ -46,10 +46,21 @@ extern const char *IR_Objc_CategoryTypeName;
                                              propList:(std::vector<llvm::Constant *>)props
                                         classPropList:(std::vector<llvm::Constant *>)classProps
                                              inModule:(llvm::Module * _Nonnull)module;
++ (llvm::GlobalVariable * _Nonnull)createObjcProtocol:(const char * _Nonnull)protocolName
+                                            withFlags:(uint32_t)flags
+                                         protocolList:(std::vector<llvm::Constant *>)protocols
+                                           methodList:(std::vector<llvm::Constant *>)methods
+                                      classMethodList:(std::vector<llvm::Constant *>)classMethods
+                                   optionalMethodList:(std::vector<llvm::Constant *>)optionalMethods
+                              optionalClassMethodList:(std::vector<llvm::Constant *>)optionalClassMethods
+                                             propList:(std::vector<llvm::Constant *>)props
+                                        classPropList:(std::vector<llvm::Constant *>)classProps
+                                             inModule:(llvm::Module * _Nonnull)module;
 // get
 + (nullable NSString *)getObjcClassName:(llvm::GlobalVariable * _Nonnull)cls;
 + (nullable NSString *)getObjcCategoryName:(llvm::GlobalVariable * _Nonnull)cat;
 + (nullable NSString *)getObjcClassNameFromCategory:(llvm::GlobalVariable * _Nonnull)cat;
++ (nullable NSString *)getObjcProcotolName:(llvm::GlobalVariable * _Nonnull)pro;
 + (nonnull NSDictionary<NSString *, NSValue *> *)getObjcClassTypeInModule:(llvm::Module * _Nonnull)module;
 + (nonnull NSDictionary<NSString *, NSValue *> *)getObjcCategoryTypeInModule:(llvm::Module * _Nonnull)module;
 + (llvm::GlobalVariable * _Nullable)getObjcClass:(nonnull NSString *)className
@@ -57,6 +68,8 @@ extern const char *IR_Objc_CategoryTypeName;
 + (llvm:: GlobalVariable * _Nullable)getCategory:(nonnull NSString *)categoryName
                                     forObjcClass:(nonnull NSString *)className
                                         inModule:(llvm::Module * _Nonnull)module;
++ (llvm::GlobalVariable * _Nullable)getObjcProtocolLabel:(nonnull NSString *)protocolName
+                                                inModule:(llvm::Module * _Nonnull)module;
 @end
 
 NS_ASSUME_NONNULL_END

@@ -18,8 +18,6 @@ NS_ASSUME_NONNULL_BEGIN
 @interface DDIRModule(Merge)
 + (void)mergeLLFiles:(nonnull NSArray<NSString *> *)pathes toLLFile:(nonnull NSString *)outputPath;
 - (void)mergeObjcData;
-- (void)mergeClassInfos:(nonnull NSArray<DDIRModuleMergeInfo *> *)infos withSize:(NSUInteger)size controlVariable:(nonnull NSString *)varName;
-- (void)mergeCategoryInfos:(nonnull NSArray<DDIRModuleMergeInfo *> *)infos forClass:(nonnull NSString *)clsName withSize:(NSUInteger)size controlVariable:(nonnull NSString *)varName;
 @end
 
 NS_ASSUME_NONNULL_END

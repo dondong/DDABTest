@@ -16,6 +16,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic,strong,readonly,nonnull) NSArray<DDIRStringVariable *> *stringList;
 @property(nonatomic,strong,readonly,nonnull) NSArray<DDIRObjCClass *> *objcClassList;
 @property(nonatomic,strong,readonly,nonnull) NSArray<DDIRObjCCategory *> *objcCategoryList;
+@property(nonatomic,strong,readonly,nonnull) NSArray<DDIRObjCProtocol *> *objcProtocolList;
 @property(nonatomic,strong,readonly,nonnull) NSArray<DDIRFunction *> *functionList;
 @end
 
@@ -27,14 +28,20 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)executeChangesWithBlock:(void (^_Nullable)(DDIRModule * _Nullable module))block;
 - (void)executeChangesWithSavePath:(nonnull NSString *)savePath block:(void (^_Nullable)(DDIRModule * _Nullable module))block;
-// change
+/*
+ change
+ */
 - (void)addControlVariable:(nonnull NSString *)name section:(nonnull NSString *)section;
+// class
 - (void)addEmptyClass:(nonnull NSString *)className;
-- (void)addEmptyCategory:(nonnull NSString *)categoryName toClass:(nonnull NSString *)className;
 - (BOOL)replaceObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName;
 - (BOOL)moveClass:(nonnull NSString *)className to:(nonnull NSString *)section;
+// category
+- (void)addEmptyCategory:(nonnull NSString *)categoryName toClass:(nonnull NSString *)className;
 - (BOOL)replaceCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName;
 - (BOOL)moveCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className to:(nonnull NSString *)section;
+// protocol
+- (BOOL)replaceObjcProtocol:(nonnull NSString *)protocolName withNewComponentName:(nonnull NSString *)newName;
 @end
 
 NS_ASSUME_NONNULL_END

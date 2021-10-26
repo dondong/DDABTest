@@ -9,11 +9,11 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-#if DemoTarget==1
+//#if DemoTarget==1
 @interface DDTestObject(Category)
-#else
-@interface DDTestSuperObject(Category)
-#endif
+//#else
+//@interface DDTestSuperObject(Category)
+//#endif
 + (void)categoryStaticTestObject;
 - (void)categoryInstanceTestObject;
 @end

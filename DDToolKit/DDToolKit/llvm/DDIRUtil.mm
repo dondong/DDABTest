@@ -41,6 +41,23 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
     return used;
 }
 
++ (llvm::GlobalVariable * _Nonnull)getLlvmUsedInModule:(llvm::Module * _Nonnull)module
+{
+    GlobalVariable *used = module->getNamedGlobal("llvm.used");
+    if (nullptr == used) {
+        std::vector<Constant *> list;
+        Constant *val = ConstantArray::get(ArrayType::get(Type::getInt8PtrTy(module->getContext()), 0), list);
+        used = new GlobalVariable(*module,
+                                  val->getType(),
+                                  false,
+                                  GlobalValue::AppendingLinkage,
+                                  val,
+                                  "llvm.used");
+        used->setSection("llvm.metadata");
+    }
+    return used;
+}
+
 + (llvm::StructType * _Nullable)getStructType:(const char * _Nonnull)name inModule:(llvm::Module * _Nonnull)module
 {
     for (StructType *type : module->getIdentifiedStructTypes()) {
@@ -81,6 +98,7 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
     } else if (auto fun = dyn_cast<Function>(var)) {
         
     }
+    var->removeDeadConstantUsers();
     while (!var->materialized_use_empty()) {
         if (auto e = dyn_cast<ConstantExpr>(var->user_back())) {
             if (!e->materialized_use_empty()) {
@@ -121,7 +139,8 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
                         c->removeDeadConstantUsers();
                         if (c->getNumUses() == 1) {
                             if (auto *u = dyn_cast<GlobalVariable>(c->user_back())) {
-                                if (0 == strcmp(u->getName().data(), "llvm.compiler.used")) {
+                                if (0 == strcmp(u->getName().data(), "llvm.compiler.used") ||
+                                    0 == strcmp(u->getName().data(), "llvm.used")) {
                                     [self removeGlobalValue:g inModule:module];
                                 }
                             }
@@ -185,7 +204,6 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
       }
       u.set(var2);
     }
-    var1->eraseFromParent();
 }
 
 + (nonnull NSString *)changeGlobalValueName:(llvm::GlobalValue * _Nonnull)variable from:(nonnull NSString *)oldName to:(nonnull NSString *)newName
@@ -193,13 +211,13 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
     assert(nullptr != variable);
     NSString *n = nil;
     NSString *o = [NSString stringWithCString:variable->getName().data() encoding:NSUTF8StringEncoding];
-    if ([o hasSuffix:[@"_" stringByAppendingString:oldName]]) {
+    if ([o hasSuffix:[@"_" stringByAppendingString:oldName]]) {   // xx_oldName
         n = [o stringByReplacingOccurrencesOfString:oldName withString:newName options:0 range:NSMakeRange(o.length - oldName.length, oldName.length)];
-    } else if ([o containsString:[NSString stringWithFormat:@"$_%@.", oldName]]) {
+    } else if ([o containsString:[NSString stringWithFormat:@"$_%@.", oldName]]) {   // xx$_oldName.xx
         n = [o stringByReplacingOccurrencesOfString:[NSString stringWithFormat:@"$_%@.", oldName] withString:[NSString stringWithFormat:@"$_%@.", newName]];
-    } else if ([o containsString:[NSString stringWithFormat:@"[%@ ", oldName]]) {
+    } else if ([o containsString:[NSString stringWithFormat:@"[%@ ", oldName]]) {   // xx[oldName xx
         n = [o stringByReplacingOccurrencesOfString:[NSString stringWithFormat:@"[%@ ", oldName] withString:[NSString stringWithFormat:@"[%@ ", newName]];
-    } else if ([o containsString:[NSString stringWithFormat:@"(%@) ", oldName]]) {
+    } else if ([o containsString:[NSString stringWithFormat:@"(%@) ", oldName]]) {   // xx(oldName) xx
         n = [o stringByReplacingOccurrencesOfString:[NSString stringWithFormat:@"(%@) ", oldName] withString:[NSString stringWithFormat:@"(%@) ", newName]];
     }
     if (nil != n) {

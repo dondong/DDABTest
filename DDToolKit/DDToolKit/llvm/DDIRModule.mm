@@ -28,6 +28,7 @@ using namespace llvm;
 @property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRStringVariable *> *stringList;
 @property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRObjCClass *> *objcClassList;
 @property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRObjCCategory *> *objcCategoryList;
+@property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRObjCProtocol *> *objcProtocolList;
 @property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRFunction *> *functionList;
 @end
 
@@ -59,10 +60,12 @@ using namespace llvm;
         // merge module
         BOOL hasCls = false;
         BOOL hasCat = false;
+        NSMutableDictionary *protocolDic = [NSMutableDictionary dictionary];
         for (int i = 0; i < pathes.count; ++i) {
             SMDiagnostic err;
             std::unique_ptr<Module> ptr = parseAssemblyFile([pathes[i] cStringUsingEncoding:NSUTF8StringEncoding], err, context);
             if (nullptr != ptr) {
+                NSMutableArray *removeArray = [NSMutableArray array];
                 Module::GlobalListType &globallist = ptr->getGlobalList();
                 for (GlobalVariable &v : globallist) {
                     if (v.hasSection()) {
@@ -76,6 +79,31 @@ using namespace llvm;
                         if (isCls || isCat) {
                             v.setLinkage(GlobalValue::AppendingLinkage);
                             v.setDSOLocal(false);
+                        } else if (0 == strncmp(v.getSection().data(), "__DATA,__objc_protolist", 23)) {
+                            GlobalVariable *var = dyn_cast<GlobalVariable>(v.getInitializer());
+                            NSString *name = [DDIRUtil getObjcProcotolName:var];
+                            if (nil != [protocolDic objectForKey:name]) {
+                                StringRef oldName = var->getName();
+                                v.setName("");
+                                var->setName("");
+                                GlobalVariable *newVar = [DDIRUtil createGlobalVariableName:oldName.data()
+                                                                         fromGlobalVariable:var
+                                                                                       type:var->getInitializer()->getType()
+                                                                                initializer:nullptr
+                                                                                   inModule:ptr.get()];
+                                newVar->setLinkage(GlobalValue::ExternalWeakLinkage);
+                                [DDIRUtil replaceGlobalVariable:var with:newVar];
+                                [removeArray addObject:[NSValue valueWithPointer:std::addressof(v)]];
+                                [removeArray addObject:[NSValue valueWithPointer:var]];
+                                [DDIRUtil removeValue:newVar
+                                      fromGlobalArray:[DDIRUtil getLlvmCompilerUsedInModule:ptr.get()]
+                                             inModule:ptr.get()];
+                                [DDIRUtil removeValue:newVar
+                                      fromGlobalArray:[DDIRUtil getLlvmUsedInModule:ptr.get()]
+                                             inModule:ptr.get()];
+                            } else {
+                                [protocolDic setObject:@(YES) forKey:name];
+                            }
                         }
                         if ((hasCls && isCls) || (hasCat && isCat)) {
                             [DDIRUtil removeValue:std::addressof(v)
@@ -85,6 +113,9 @@ using namespace llvm;
                         hasCls |= isCls;
                         hasCat |= isCat;
                     }
+                }
+                for (NSValue *val in removeArray) {
+                    [DDIRUtil removeGlobalValue:(GlobalVariable *)val.pointerValue inModule:ptr.get()];
                 }
                 linker.linkInModule(std::move(ptr), Linker::Flags::None);
             }
@@ -123,6 +154,7 @@ using namespace llvm;
     NSMutableArray *stringList = [[NSMutableArray alloc] init];
     NSMutableArray *objcClassList = [[NSMutableArray alloc] init];
     NSMutableArray *objcCategoryList = [[NSMutableArray alloc] init];
+    NSMutableArray *objcProcotolList = [[NSMutableArray alloc] init];
     Module::GlobalListType &globallist = ptr->getGlobalList();
     for (GlobalVariable &v : globallist) {
         if (0 == strncmp(v.getName().data(), ".str", 4) && nullptr != v.getValueType()) {
@@ -148,12 +180,16 @@ using namespace llvm;
                     DDIRObjCCategory *objcCategory = _objCCategoryFromVariable(dyn_cast<GlobalVariable>(dyn_cast<ConstantExpr>(arr->getOperand(i))->getOperand(0)), globalDic);
                     [objcCategoryList addObject:objcCategory];
                 }
+            } else if (0 == strncmp(v.getSection().data(), "__DATA,__objc_protolist", 23)) {
+                DDIRObjCProtocol *objcProtocol = _objcProtocolFromVariable(dyn_cast<GlobalVariable>(v.getInitializer()), globalDic);
+                [objcProcotolList addObject:objcProtocol];
             }
         }
     }
     data.stringList = [NSArray arrayWithArray:stringList];
     data.objcClassList = [NSArray arrayWithArray:objcClassList];
     data.objcCategoryList = [NSArray arrayWithArray:objcCategoryList];
+    data.objcProtocolList = [NSArray arrayWithArray:objcProcotolList];
     
     NSMutableArray *functionNameList = [[NSMutableArray alloc] init];
     Module::FunctionListType &functionList = ptr->getFunctionList();
@@ -250,33 +286,6 @@ using namespace llvm;
                          propList:std::vector<llvm::Constant *>()
                     classPropList:std::vector<llvm::Constant *>()
                          inModule:self.module];
-    }
-}
-
-- (void)addEmptyCategory:(nonnull NSString *)categoryName toClass:(nonnull NSString *)className
-{
-    NSString *globalName = [NSString stringWithFormat:@"_OBJC_$_CATEGORY_%@_$_%@", className, categoryName];
-    GlobalVariable *cat = self.module->getNamedGlobal([globalName cStringUsingEncoding:NSUTF8StringEncoding]);
-    if (nullptr == cat) {
-        GlobalVariable *cls = [DDIRUtil getObjcClass:className inModule:self.module];
-        if (nullptr == cls) {
-            NSDictionary *dic = [DDIRUtil getObjcClassTypeInModule:self.module];
-            StructType *classType = (StructType *)[[dic objectForKey:[NSString stringWithCString:IR_Objc_ClassTypeName encoding:NSUTF8StringEncoding]] pointerValue];
-            cls = new GlobalVariable(*self.module,
-                                     classType,
-                                     false,
-                                     GlobalValue::ExternalLinkage,
-                                     nullptr,
-                                     [[NSString stringWithFormat:@"OBJC_CLASS_$_%@", className] cStringUsingEncoding:NSUTF8StringEncoding]);
-        }
-        [DDIRUtil createObjcCategory:[categoryName cStringUsingEncoding:NSUTF8StringEncoding]
-                                 cls:cls
-                      withMethodList:std::vector<Constant *>()
-                     classMethodList:std::vector<Constant *>()
-                        protocolList:std::vector<Constant *>()
-                            propList:std::vector<Constant *>()
-                       classPropList:std::vector<Constant *>()
-                            inModule:self.module];
     }
 }
 
@@ -438,6 +447,33 @@ using namespace llvm;
     return false;
 }
 
+- (void)addEmptyCategory:(nonnull NSString *)categoryName toClass:(nonnull NSString *)className
+{
+    NSString *globalName = [NSString stringWithFormat:@"_OBJC_$_CATEGORY_%@_$_%@", className, categoryName];
+    GlobalVariable *cat = self.module->getNamedGlobal([globalName cStringUsingEncoding:NSUTF8StringEncoding]);
+    if (nullptr == cat) {
+        GlobalVariable *cls = [DDIRUtil getObjcClass:className inModule:self.module];
+        if (nullptr == cls) {
+            NSDictionary *dic = [DDIRUtil getObjcClassTypeInModule:self.module];
+            StructType *classType = (StructType *)[[dic objectForKey:[NSString stringWithCString:IR_Objc_ClassTypeName encoding:NSUTF8StringEncoding]] pointerValue];
+            cls = new GlobalVariable(*self.module,
+                                     classType,
+                                     false,
+                                     GlobalValue::ExternalLinkage,
+                                     nullptr,
+                                     [[NSString stringWithFormat:@"OBJC_CLASS_$_%@", className] cStringUsingEncoding:NSUTF8StringEncoding]);
+        }
+        [DDIRUtil createObjcCategory:[categoryName cStringUsingEncoding:NSUTF8StringEncoding]
+                                 cls:cls
+                      withMethodList:std::vector<Constant *>()
+                     classMethodList:std::vector<Constant *>()
+                        protocolList:std::vector<Constant *>()
+                            propList:std::vector<Constant *>()
+                       classPropList:std::vector<Constant *>()
+                            inModule:self.module];
+    }
+}
+
 - (BOOL)replaceCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName
 {
     GlobalVariable *cat = [DDIRUtil getCategory:categoryName forObjcClass:className inModule:self.module];
@@ -554,6 +590,64 @@ using namespace llvm;
     return false;
 }
 
+- (BOOL)replaceObjcProtocol:(nonnull NSString *)protocolName withNewComponentName:(nonnull NSString *)newName
+{
+    GlobalVariable *protocolLabel = nullptr;
+    for (GlobalVariable &v : self.module->getGlobalList()) {
+        if (v.hasSection()) {
+            if (0 == strncmp(v.getSection().data(), "__DATA,__objc_protolist", 23)) {
+                GlobalVariable *var = dyn_cast<GlobalVariable>(v.getInitializer());
+                NSString *name = [DDIRUtil getObjcProcotolName:var];
+                if ([protocolName isEqualToString:name]) {
+                    protocolLabel = std::addressof(v);
+                    break;
+                }
+            }
+        }
+    }
+    if (nullptr != protocolLabel) {
+        [DDIRUtil changeGlobalValueName:protocolLabel from:protocolName to:newName];
+        GlobalVariable *protocol = dyn_cast<GlobalVariable>(protocolLabel->getInitializer());
+        [DDIRUtil changeGlobalValueName:protocol from:protocolName to:newName];
+        // name
+        [DDIRUtil changeStringValue:dyn_cast<ConstantStruct>(protocol->getInitializer()) atOperand:1 to:newName inModule:self.module];
+        // protocols
+        if (isNullValue(protocol, 2)) {
+            [DDIRUtil changeGlobalValueName:getValue(protocol, 2) from:protocolName to:newName];
+        }
+        // instanceMethods
+        if (isNullValue(protocol, 3)) {
+            [DDIRUtil changeGlobalValueName:getValue(protocol, 3) from:protocolName to:newName];
+        }
+        // classMethods
+        if (isNullValue(protocol, 4)) {
+            [DDIRUtil changeGlobalValueName:getValue(protocol, 4) from:protocolName to:newName];
+        }
+        // optionalInstanceMethods
+        if (isNullValue(protocol, 5)) {
+            [DDIRUtil changeGlobalValueName:getValue(protocol, 5) from:protocolName to:newName];
+        }
+        // optionalClassMethods
+        if (isNullValue(protocol, 6)) {
+            [DDIRUtil changeGlobalValueName:getValue(protocol, 6) from:protocolName to:newName];
+        }
+        // instanceProperties
+        if (isNullValue(protocol, 7)) {
+            [DDIRUtil changeGlobalValueName:getValue(protocol, 7) from:protocolName to:newName];
+        }
+        // _extendedMethodTypes
+        if (isNullValue(protocol, 10)) {
+            [DDIRUtil changeGlobalValueName:getValue(protocol, 10) from:protocolName to:newName];
+        }
+        // _classProperties
+        if (isNullValue(protocol, 12)) {
+            [DDIRUtil changeGlobalValueName:getValue(protocol, 12) from:protocolName to:newName];
+        }
+        return true;
+    }
+    return false;
+}
+
 static NSArray<DDIRObjCMethod *> *_objcMethodListFromStruct(ConstantStruct *methodPtr)
 {
     uint64_t count = (dyn_cast<ConstantInt>(methodPtr->getOperand(1)))->getZExtValue();
@@ -568,23 +662,43 @@ static NSArray<DDIRObjCMethod *> *_objcMethodListFromStruct(ConstantStruct *meth
     return [NSArray arrayWithArray:methodList];
 }
 
-static DDIRObjCProtocol *_objcProtocolFromStruct(ConstantStruct *protocolPtr, NSMutableDictionary *globalDic)
+static DDIRObjCProtocol *_objcProtocolFromVariable(GlobalVariable *variable, NSMutableDictionary *globalDic)
 {
-    NSString *name = [NSString stringWithFormat:@"%s", protocolPtr->getName().data()];
+    NSString *name = [NSString stringWithFormat:@"%s", variable->getName().data()];
     DDIRObjCProtocol *protocol = [globalDic objectForKey:name];;
     if (nil == protocol) {
         protocol = [[DDIRObjCProtocol alloc] init];
         [globalDic setObject:protocol forKey:name];
-        if (nullptr != protocolPtr->getOperand(1)) {
-            protocol.protocolName = [DDIRUtil stringFromGlobalVariable:dyn_cast<GlobalVariable>((dyn_cast<ConstantExpr>(protocolPtr->getOperand(1)))->getOperand(0))];
+        if (isNullValue(variable, 1)) {
+            protocol.protocolName = [DDIRUtil stringFromGlobalVariable:getValue(variable, 1)];
         }
-        if (nullptr != protocolPtr->getOperand(3)) {
-            ConstantStruct *instanceMethods = dyn_cast<ConstantStruct>((dyn_cast<GlobalVariable>((dyn_cast<ConstantExpr>(protocolPtr->getOperand(3)))->getOperand(0)))->getInitializer());
-            protocol.instanceMethodList = _objcMethodListFromStruct(instanceMethods);
+        if (isNullValue(variable, 2)) {
+            ConstantStruct *list = dyn_cast<ConstantStruct>(getValue(variable, 2)->getInitializer());
+            uint64_t count = dyn_cast<ConstantInt>(list->User::getOperand(0))->getZExtValue();
+            ConstantArray *arr = dyn_cast<ConstantArray>(list->getOperand(1));
+            if (count + 1 == arr->getNumOperands()) {
+                NSMutableArray *protocolList = [[NSMutableArray alloc] initWithCapacity:count];
+                for (int i = 0; i < count; ++i) {
+                    GlobalVariable *ptr = dyn_cast<GlobalVariable>(arr->getOperand(i));
+                    if (nullptr != ptr) {
+                        DDIRObjCProtocol *p = _objcProtocolFromVariable(ptr, globalDic);
+                        [protocolList addObject:p];
+                    }
+                }
+                protocol.protocolList = protocolList;
+            }
         }
-        if (nullptr != protocolPtr->getOperand(4)) {
-            ConstantStruct *classMethods = dyn_cast<ConstantStruct>((dyn_cast<GlobalVariable>((dyn_cast<ConstantExpr>(protocolPtr->getOperand(4)))->getOperand(0)))->getInitializer());
-            protocol.classMethodList = _objcMethodListFromStruct(classMethods);
+        if (isNullValue(variable, 3)) {
+            protocol.instanceMethodList = _objcMethodListFromStruct(dyn_cast<ConstantStruct>(getValue(variable, 3)->getInitializer()));
+        }
+        if (isNullValue(variable, 4)) {
+            protocol.classMethodList = _objcMethodListFromStruct(dyn_cast<ConstantStruct>(getValue(variable, 4)->getInitializer()));
+        }
+        if (isNullValue(variable, 5)) {
+            protocol.optionalInstanceMethodList = _objcMethodListFromStruct(dyn_cast<ConstantStruct>(getValue(variable, 5)->getInitializer()));
+        }
+        if (isNullValue(variable, 6)) {
+            protocol.optionalClassMethodList = _objcMethodListFromStruct(dyn_cast<ConstantStruct>(getValue(variable, 6)->getInitializer()));
         }
     }
     return protocol;
@@ -619,20 +733,20 @@ static DDIRObjCClass *_objCClassFromVariable(GlobalVariable *variable, NSMutable
             }
             // protocol
             if (isNullValue(ro, 6)) {
-//                ConstantStruct *protocolsPtr = dyn_cast<ConstantStruct>(getValue(ro, 6)->getInitializer());
-//                ConstantArray *arr = dyn_cast<ConstantArray>(protocolsPtr->getOperand(1));
-//                if (2 == arr->getNumOperands()) {
-//                    uint64_t count = arr->getNumOperands();
-//                    NSMutableArray *protocolList = [[NSMutableArray alloc] initWithCapacity:count];
-//                    for (int i = 0; i < count; ++i) {
-//                        GlobalVariable *ptr = dyn_cast<GlobalVariable>(arr->getOperand(i));
-//                        if (nullptr != ptr) {
-//                            DDIRObjCProtocol *p = _objcProtocolFromStruct(dyn_cast<ConstantStruct>(ptr->getInitializer()), globalDic);
-//                            [protocolList addObject:p];
-//                        }
-//                    }
-//                    objcClass.protocolList = protocolList;
-//                }
+                ConstantStruct *protocolsPtr = dyn_cast<ConstantStruct>(getValue(ro, 6)->getInitializer());
+                uint64_t count = dyn_cast<ConstantInt>(protocolsPtr->User::getOperand(0))->getZExtValue();
+                ConstantArray *arr = dyn_cast<ConstantArray>(protocolsPtr->getOperand(1));
+                if (count + 1 == arr->getNumOperands()) {
+                    NSMutableArray *protocolList = [[NSMutableArray alloc] initWithCapacity:count];
+                    for (int i = 0; i < count; ++i) {
+                        GlobalVariable *ptr = dyn_cast<GlobalVariable>(arr->getOperand(i));
+                        if (nullptr != ptr) {
+                            DDIRObjCProtocol *p = _objcProtocolFromVariable(ptr, globalDic);
+                            [protocolList addObject:p];
+                        }
+                    }
+                    objcClass.protocolList = protocolList;
+                }
             }
             // ivar
             if (isNullValue(ro, 7)) {

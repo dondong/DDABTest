@@ -33,11 +33,14 @@ using namespace llvm;
     }
     NSMutableDictionary *mergeClassList = [NSMutableDictionary dictionary];
     NSMutableDictionary *mergeCategoryList = [NSMutableDictionary dictionary];
+    NSMutableDictionary *mergeProtocolList = [NSMutableDictionary dictionary];
+    NSMutableDictionary *mergeProtocolMap = [NSMutableDictionary dictionary];
     for (int i = 0; i < moduleList.count; ++i) {
         DDIRModule *module = moduleList[i];
         NSString *appendStr = [NSString stringWithFormat:@"%lu", (unsigned long)module.path.hash % 10000];
         NSMutableArray<NSArray<NSString *> *> *classChangeList    = [NSMutableArray array];
         NSMutableArray<NSArray<NSString *> *> *categoryChangeList = [NSMutableArray array];
+        NSMutableArray<NSArray<NSString *> *> *protocolChangeList = [NSMutableArray array];
         DDIRModuleData *data = [module getData];
         for (DDIRObjCClass *c in data.objcClassList) {
             if (nil == [mergeClassList objectForKey:c.className]) {
@@ -56,7 +59,21 @@ using namespace llvm;
                 [[mergeCategoryList objectForKey:c.isa.className] addObject:[DDIRModuleMergeInfo infoWithTarget:appendStr index:i]];
             }
         }
+        for (DDIRObjCProtocol *p in data.objcProtocolList) {
+            if (nil == [mergeProtocolList objectForKey:p.protocolName]) {
+                [mergeProtocolList setObject:@[p.protocolName].mutableCopy forKey:p.protocolName];
+                [mergeProtocolMap setObject:p.protocolName forKey:p.protocolName];
+            } else {
+                NSString *newName = [p.protocolName stringByAppendingString:appendStr];
+                [protocolChangeList addObject:@[p.protocolName, newName]];
+                [[mergeProtocolList objectForKey:p.protocolName] addObject:newName];
+                [mergeProtocolMap setObject:p.protocolName forKey:newName];
+            }
+        }
         [module executeChangesWithBlock:^(DDIRModule * _Nullable m) {
+            for (NSArray *arr in protocolChangeList) {
+                [m replaceObjcProtocol:arr[0] withNewComponentName:arr[1]];
+            }
             for (NSArray *arr in categoryChangeList) {
                 [m replaceCategory:arr[1] forObjcClass:arr[0] withNewComponentName:arr[2]];
             }
@@ -70,18 +87,24 @@ using namespace llvm;
     DDIRModule *module = [DDIRModule moduleFromLLPath:outputPath];
     
     [module executeChangesWithBlock:^(DDIRModule * _Nullable m) {
+        for (NSString *name in mergeProtocolList.allKeys) {
+            NSArray *nameList = [mergeProtocolList objectForKey:name];
+            if (nameList.count > 0) {
+                [m _mergeProtocols:nameList withMap:mergeProtocolMap];
+            }
+        }
         NSString *control = @"Control_$_1";
         [m addControlVariable:control section:@"__DATA, __dd_control"];
         for (NSString *name in mergeClassList.allKeys) {
             NSArray *clss = [mergeClassList objectForKey:name];
             if (clss.count > 0) {
-                [m mergeClassInfos:clss withSize:pathes.count controlVariable:control];
+                [m _mergeClassInfos:clss withSize:pathes.count controlVariable:control];
             }
         }
         for (NSString *name in mergeCategoryList.allKeys) {
             NSArray *cats = [mergeCategoryList objectForKey:name];
             if (cats.count > 0) {
-                [m mergeCategoryInfos:cats forClass:name withSize:pathes.count controlVariable:control];
+                [m _mergeCategoryInfos:cats forClass:name withSize:pathes.count controlVariable:control];
             }
         }
     }];
@@ -139,7 +162,7 @@ using namespace llvm;
     }
 }
 
-- (void)mergeClassInfos:(nonnull NSArray<DDIRModuleMergeInfo *> *)infos withSize:(NSUInteger)size controlVariable:(nonnull NSString *)varName
+- (void)_mergeClassInfos:(nonnull NSArray<DDIRModuleMergeInfo *> *)infos withSize:(NSUInteger)size controlVariable:(nonnull NSString *)varName
 {
     if (infos.count <= 1) {
         return;
@@ -200,6 +223,24 @@ using namespace llvm;
         };
         funBlock(ro, instMethodDic);
         funBlock(metaRo, classMethodDic);
+        // protocol
+        if (isNullValue(ro, 6)) {
+            GlobalVariable *v = getValue(ro, 6);
+            v->setName("");
+            ConstantStruct *s = dyn_cast<ConstantStruct>(v->getInitializer());
+            uint64_t count = (dyn_cast<ConstantInt>(s->getOperand(0)))->getZExtValue();
+            ConstantArray *list = dyn_cast<ConstantArray>(s->getOperand(1));
+            for (int j = 0; j < count; ++j) {
+                GlobalVariable *pro = dyn_cast<GlobalVariable>(list->getOperand(j));
+                NSString *name = [DDIRUtil getObjcProcotolName:pro];
+                NSNumber *b = [procotolDic objectForKey:name];
+                if (nil == b) {
+                    procotolList.push_back(pro);
+                    [procotolDic setObject:@(YES) forKey:name];
+                }
+
+            }
+        }
         // ivar
         if (isNullValue(ro, 7)) {
             GlobalVariable *v = getValue(ro, 7);
@@ -283,6 +324,7 @@ using namespace llvm;
                                                        initializer:cls
                                                           inModule:self.module];
             [DDIRUtil replaceGlobalVariable:v with:n];
+            v->eraseFromParent();
         }
         for (ConstantStruct *s : sl) {
             s->handleOperandChange(c, cls);
@@ -307,6 +349,7 @@ using namespace llvm;
                                                        initializer:metaCls
                                                           inModule:self.module];
             [DDIRUtil replaceGlobalVariable:v with:n];
+            v->eraseFromParent();
         }
         for (ConstantStruct *s : metaSl) {
             s->handleOperandChange(metaC, metaCls);
@@ -317,10 +360,10 @@ using namespace llvm;
     }
 }
 
-- (void)mergeCategoryInfos:(nonnull NSArray<DDIRModuleMergeInfo *> *)infos
-                  forClass:(nonnull NSString *)clsName
-                  withSize:(NSUInteger)size
-           controlVariable:(nonnull NSString *)varName
+- (void)_mergeCategoryInfos:(nonnull NSArray<DDIRModuleMergeInfo *> *)infos
+                   forClass:(nonnull NSString *)clsName
+                   withSize:(NSUInteger)size
+            controlVariable:(nonnull NSString *)varName
 {
     if (infos.count <= 1) {
         return;
@@ -359,23 +402,22 @@ using namespace llvm;
         };
         funBlock(instMethodDic, 2);
         funBlock(classMethodDic, 3);
-//        // protocol
-//        if (checkValue(str, 4)) {
-//            ConstantStruct *v = dyn_cast<ConstantStruct>(getValue(str, 4));
-//            uint64_t count = (dyn_cast<ConstantInt>(v->getOperand(0)))->getZExtValue();
-//            ConstantArray *list = dyn_cast<ConstantArray>(v->getOperand(2));
-//            for (int j = 0; j < count; ++j) {
-//                ConstantStruct *m = dyn_cast<ConstantStruct>(list->getOperand(j));
-//                ConstantDataArray *n = dyn_cast<ConstantDataArray>((dyn_cast<GlobalVariable>((dyn_cast<ConstantExpr>(m->getOperand(0)))->getOperand(0)))->getInitializer());
-//                NSString *name = [DDIRUtil stringFromArray:n];
-//                NSMutableArray *a = [dic objectForKey:name];
-//                if (nil == a) {
-//                    a = [NSMutableArray array];
-//                    [dic setObject:a forKey:name];
-//                }
-//                [a addObject:@[[NSValue valueWithPointer:m], @(infos[i].index)]];
-//            }
-//        }
+        // protocol
+        if (isNullValue(cat, 4)) {
+            ConstantStruct *s = dyn_cast<ConstantStruct>(getValue(cat, 4)->getInitializer());
+            uint64_t count = (dyn_cast<ConstantInt>(s->getOperand(0)))->getZExtValue();
+            ConstantArray *list = dyn_cast<ConstantArray>(s->getOperand(1));
+            for (int j = 0; j < count; ++j) {
+                GlobalVariable *pro = dyn_cast<GlobalVariable>(list->getOperand(j));
+                NSString *name = [DDIRUtil getObjcProcotolName:pro];
+                NSNumber *b = [procotolDic objectForKey:name];
+                if (nil == b) {
+                    procotolList.push_back(pro);
+                    [procotolDic setObject:@(YES) forKey:name];
+                }
+
+            }
+        }
         // prop
         void (^propBlock)(NSMutableDictionary *, std::vector<Constant *>&, int) = ^(NSMutableDictionary *dic, std::vector<Constant *>& l, int index) {
             if (isNullValue(cat, index)) {
@@ -413,6 +455,132 @@ using namespace llvm;
     for (DDIRModuleMergeInfo *i in infos) {
         GlobalVariable *cat = [DDIRUtil getCategory:i.target forObjcClass:clsName inModule:self.module];
         [DDIRUtil removeGlobalValue:cat inModule:self.module];
+    }
+}
+
+- (void)_mergeProtocols:(nonnull NSArray<NSString *> *)names withMap:(nonnull NSDictionary<NSString *, NSString *> *)map
+{
+    if (names.count <= 1) {
+        return;
+    }
+    std::vector<GlobalVariable *> removeList;
+    std::vector<GlobalVariable *> proList;
+    uint32_t flags = 0;
+    std::vector<Constant *> procotolList;
+    std::vector<Constant *> instMethodList;
+    std::vector<Constant *> classMethodList;
+    std::vector<Constant *> instOpMethodList;
+    std::vector<Constant *> classOpMethodList;
+    std::vector<Constant *> instPropList;
+    std::vector<Constant *> classPropList;
+    
+    NSMutableDictionary *instMethodDic  = [NSMutableDictionary dictionary];
+    NSMutableDictionary *classMethodDic = [NSMutableDictionary dictionary];
+    NSMutableDictionary *procotolDic    = [NSMutableDictionary dictionary];
+    NSMutableDictionary *instPropDic    = [NSMutableDictionary dictionary];
+    NSMutableDictionary *classPropDic   = [NSMutableDictionary dictionary];
+    for (int i = 0; i < names.count; ++i) {
+        GlobalVariable *protocolLabel = [DDIRUtil getObjcProtocolLabel:names[i] inModule:self.module];
+        assert(nullptr != protocolLabel);
+        GlobalVariable *protocol = dyn_cast<GlobalVariable>(protocolLabel->getInitializer());
+        assert(nullptr != protocol);
+        removeList.push_back(protocolLabel);
+        removeList.push_back(protocol);
+        proList.push_back(protocol);
+        protocolLabel->setName("");
+        protocol->setName("");
+        flags |= dyn_cast<ConstantInt>(protocol->getInitializer()->getOperand(9))->getZExtValue();
+        // method
+        void (^funBlock)(NSMutableDictionary *, std::vector<Constant *>&, int) = ^(NSMutableDictionary *dic, std::vector<Constant *>& l, int index) {
+            if (isNullValue(protocol, index)) {
+                GlobalVariable *v = getValue(protocol, index);
+                v->setName("");
+                ConstantStruct *s = dyn_cast<ConstantStruct>(v->getInitializer());
+                uint64_t count = (dyn_cast<ConstantInt>(s->getOperand(1)))->getZExtValue();
+                ConstantArray *list = dyn_cast<ConstantArray>(s->getOperand(2));
+                for (int j = 0; j < count; ++j) {
+                    ConstantStruct *m = dyn_cast<ConstantStruct>(list->getOperand(j));
+                    NSString *name = [DDIRUtil stringFromGlobalVariable:dyn_cast<GlobalVariable>((dyn_cast<ConstantExpr>(m->getOperand(0)))->getOperand(0))];
+                    NSNumber *b = [dic objectForKey:name];
+                    if (nil == b) {
+                        l.push_back(m);
+                        [dic setObject:@(YES) forKey:name];
+                    }
+                }
+            }
+        };
+        funBlock(instMethodDic, instMethodList, 3);
+        funBlock(instMethodDic, instOpMethodList, 5);
+        funBlock(classMethodDic, classMethodList, 4);
+        funBlock(classMethodDic, classOpMethodList, 6);
+        // prop
+        void (^propBlock)(NSMutableDictionary *, std::vector<Constant *>&, int) = ^(NSMutableDictionary *dic, std::vector<Constant *>& l, int index) {
+            if (isNullValue(protocol, index)) {
+                GlobalVariable *v = getValue(protocol, index);
+                v->setName("");
+                ConstantStruct *s = dyn_cast<ConstantStruct>(v->getInitializer());
+                uint64_t count = (dyn_cast<ConstantInt>(s->getOperand(1)))->getZExtValue();
+                ConstantArray *list = dyn_cast<ConstantArray>(s->getOperand(2));
+                for (int j = 0; j < count; ++j) {
+                    ConstantStruct *m = dyn_cast<ConstantStruct>(list->getOperand(j));
+                    NSString *name = [DDIRUtil stringFromGlobalVariable:dyn_cast<GlobalVariable>((dyn_cast<ConstantExpr>(m->getOperand(0)))->getOperand(0))];
+                    NSNumber *b = [dic objectForKey:name];
+                    if (nil == b) {
+                        l.push_back(m);
+                        [dic setObject:@(YES) forKey:name];
+                    }
+
+                }
+            }
+        };
+        propBlock(instPropDic, instPropList, 7);
+        propBlock(classPropDic, classPropList, 12);
+        // protocol
+        if (isNullValue(protocol, 2)) {
+            GlobalVariable *v = getValue(protocol, 2);
+            v->setName("");
+            ConstantStruct *s = dyn_cast<ConstantStruct>(v->getInitializer());
+            uint64_t count = (dyn_cast<ConstantInt>(s->getOperand(0)))->getZExtValue();
+            ConstantArray *list = dyn_cast<ConstantArray>(s->getOperand(1));
+            for (int j = 0; j < count; ++j) {
+                GlobalVariable *pro = dyn_cast<GlobalVariable>(list->getOperand(j));
+                NSString *name = [DDIRUtil getObjcProcotolName:pro];
+                NSString *remapName = [map objectForKey:name];
+                NSNumber *b = [procotolDic objectForKey:remapName];
+                if (nil == b) {
+                    procotolList.push_back(pro);
+                    [procotolDic setObject:@(YES) forKey:remapName];
+                }
+
+            }
+        }
+        // types
+        if (isNullValue(protocol, 10)) {
+            getValue(protocol, 10)->setName("");
+        }
+        [DDIRUtil removeValue:protocol
+              fromGlobalArray:[DDIRUtil getLlvmUsedInModule:self.module]
+                     inModule:self.module];
+        [DDIRUtil removeValue:protocolLabel
+              fromGlobalArray:[DDIRUtil getLlvmUsedInModule:self.module]
+                     inModule:self.module];
+    }
+    
+    GlobalVariable *var = [DDIRUtil createObjcProtocol:[names[0] cStringUsingEncoding:NSUTF8StringEncoding]
+                                             withFlags:flags
+                                          protocolList:procotolList
+                                            methodList:instMethodList
+                                       classMethodList:classMethodList
+                                    optionalMethodList:instOpMethodList
+                               optionalClassMethodList:classOpMethodList
+                                              propList:instPropList
+                                         classPropList:classPropList
+                                              inModule:self.module];
+    for (GlobalVariable *g : proList) {
+        [DDIRUtil replaceGlobalVariable:g with:var];
+    }
+    for (GlobalVariable *g : removeList) {
+        [DDIRUtil removeGlobalValue:g inModule:self.module];
     }
 }
 
@@ -528,7 +696,6 @@ static void _clearObjcCategory(GlobalVariable *cat)
               fromGlobalArray:[DDIRUtil getLlvmCompilerUsedInModule:v->getParent()]
                      inModule:v->getParent()];
         v->eraseFromParent();
-        
     }
 }
 
@@ -624,6 +791,7 @@ static GlobalVariable *_mergeObjcList(GlobalVariable *dst, int dIndex, GlobalVar
                 newVariable->setComdat(dstList->getComdat());
             }
             [DDIRUtil replaceGlobalVariable:dstList with:newVariable];
+            dstList->eraseFromParent();
             
         } else {
             std::vector<Type *> types;
@@ -686,6 +854,7 @@ static GlobalVariable *_mergeObjcList(GlobalVariable *dst, int dIndex, GlobalVar
                                                        initializer:ConstantStruct::get(dyn_cast<StructType>(dst->getInitializer()->getType()), d)
                                                           inModule:dst->getParent()];
             [DDIRUtil replaceGlobalVariable:dst with:v];
+            dst->eraseFromParent();
             return v;
         }
     }
