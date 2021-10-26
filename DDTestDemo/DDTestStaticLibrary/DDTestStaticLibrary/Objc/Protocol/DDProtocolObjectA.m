@@ -8,7 +8,9 @@
 #import "DDProtocolObjectA.h"
 
 @implementation DDProtocolObjectA
-@dynamic protoReqStr;
+@synthesize protoReqStr;
+@synthesize protoOpStr;
+
 - (void)protocolAInstanceTest
 {
     self.protoReqStr = @"AA";

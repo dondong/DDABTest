@@ -8,11 +8,13 @@
 #import "DDProtocolObjectB.h"
 
 @implementation DDProtocolObjectB
-@dynamic protoReqStr;
+@synthesize protoReqStr;
+@synthesize protoOpStr;
+
 - (void)protocolBInstanceTest
 {
     self.protoReqStr = @"BB";
-    DDLog(@"-[DDProtocolObjectB<DDProtocolB> protocolBInstanceTest]", self.protoReqStr);
+    DDLog(@"-[DDProtocolObjectB<DDProtocolB> protocolBInstanceTest]  %@", self.protoReqStr);
     if ([self respondsToSelector:@selector(protocolBInstanceOptional_A)]) {
         [self protocolBInstanceOptional_A];
     }
@@ -57,4 +59,6 @@
 {
     DDLog(@"+[DDProtocolObjectB<DDProtocolB> protocolBClassOptional_A]");
 }
+@synthesize protoReqStr;
+
 @end
