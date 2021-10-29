@@ -351,7 +351,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nrm ${TARGET_BUILD_DIR}/libDDTestStaticLibrary.a\nrm DDABTestConfiguration.plist\n../DDToolKit \"${TARGET_BUILD_DIR}/libDDTestStaticLibraryA.a\" A \"${TARGET_BUILD_DIR}/libDDTestStaticLibraryB.a\" B --name DDTestStaticLibrary --output_config ../DDTestDemo/DDTestDemo/DDABTestConfiguration.plist --output \"${TARGET_BUILD_DIR}/libDDTestStaticLibrary.a\"\n";
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nrm ${TARGET_BUILD_DIR}/libDDTestStaticLibrary.a\nrm DDABTestConfiguration.plist\n../DDToolKit \"${TARGET_BUILD_DIR}/libDDTestStaticLibraryA.a\" A \"${TARGET_BUILD_DIR}/libDDTestStaticLibraryB.a\" B --name DDTestStaticLibrary --id 4 --output_config ../DDTestDemo/DDTestDemo/DDABTestConfiguration.plist --output \"${TARGET_BUILD_DIR}/libDDTestStaticLibrary.a\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

@@ -18,6 +18,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface DDABTestInfo : NSObject
 @property(nonatomic,strong,nullable) NSString *moduleName;
+@property(nonatomic,assign) UInt32 moduleId;
 @property(nonatomic,strong,nullable) NSString *tempDirectory;
 @property(nonatomic,strong,nullable) NSArray<DDStaticLibraryInfo *> *inputLibraries;
 @property(nonatomic,strong,nullable) NSString *outputPath;

@@ -213,24 +213,18 @@ using namespace llvm;
 
 - (void)addControlVariable:(nonnull NSString *)name controlId:(UInt32)controlId section:(nonnull NSString *)section
 {
-//    std::vector<Type *> typeList;
-//    typeList.push_back(Type::getInt32Ty(self.module->getContext()));
-//    typeList.push_back(Type::getInt32Ty(self.module->getContext()));
-//    StructType *type = StructType::get(self.module->getContext(), typeList);
-//    std::vector<Constant *> data;
-//    data.push_back(Constant::getIntegerValue(Type::getInt32Ty(self.module->getContext()), APInt(32, controlId, false)));
-//    data.push_back(Constant::getIntegerValue(Type::getInt32Ty(self.module->getContext()), APInt(32, 0, false)));
-//    GlobalVariable *ret = new GlobalVariable(*self.module,
-//                                             type,
-//                                             false,
-//                                             GlobalValue::InternalLinkage,
-//                                             ConstantStruct::get(type, data),
-//                                             [name cStringUsingEncoding:NSUTF8StringEncoding]);
+    std::vector<Type *> typeList;
+    typeList.push_back(Type::getInt32Ty(self.module->getContext()));
+    typeList.push_back(Type::getInt32Ty(self.module->getContext()));
+    StructType *type = StructType::get(self.module->getContext(), typeList);
+    std::vector<Constant *> data;
+    data.push_back(Constant::getIntegerValue(Type::getInt32Ty(self.module->getContext()), APInt(32, controlId, false)));
+    data.push_back(Constant::getIntegerValue(Type::getInt32Ty(self.module->getContext()), APInt(32, 0, false)));
     GlobalVariable *ret = new GlobalVariable(*self.module,
-                                             Type::getInt32Ty(self.module->getContext()),
+                                             type,
                                              false,
                                              GlobalValue::InternalLinkage,
-                                             Constant::getIntegerValue(Type::getInt32Ty(self.module->getContext()), APInt(32, 0, false)),
+                                             ConstantStruct::get(type, data),
                                              [name cStringUsingEncoding:NSUTF8StringEncoding]);
     ret->setAlignment(MaybeAlign(8));
     ret->setSection([section cStringUsingEncoding:NSUTF8StringEncoding]);
@@ -369,216 +363,6 @@ using namespace llvm;
     }
     return mapListType;
 }
-//- (void)_mergeClassInfos:(nonnull NSArray<DDIRModuleMergeInfo *> *)infos withSize:(NSUInteger)size controlVariable:(nonnull NSString *)varName configuration:(nonnull NSMutableDictionary *)configuration
-//{
-//    if (infos.count <= 1) {
-//        return;
-//    }
-//    GlobalVariable *superCls = nullptr;
-//    GlobalVariable *metaSuperCls = nullptr;
-//    NSString *clsName = nil;
-//    uint32_t flags = 0;
-//    uint32_t classFlags = 0;
-//    uint32_t instanceStart = 0;
-//    uint32_t instanceSize  = 0;
-//    std::vector<Constant *> instMethodList;
-//    std::vector<Constant *> classMethodList;
-//    std::vector<Constant *> ivarList;
-//    std::vector<Constant *> procotolList;
-//    std::vector<Constant *> instPropList;
-//    std::vector<Constant *> classPropList;
-//
-//    NSMutableArray *clsArray = [NSMutableArray array];
-//    NSMutableDictionary *instMethodDic  = [NSMutableDictionary dictionary];
-//    NSMutableDictionary *classMethodDic = [NSMutableDictionary dictionary];
-//    NSMutableDictionary *ivarDic        = [NSMutableDictionary dictionary];
-//    NSMutableDictionary *procotolDic    = [NSMutableDictionary dictionary];
-//    NSMutableDictionary *instPropDic    = [NSMutableDictionary dictionary];
-//    NSMutableDictionary *classPropDic   = [NSMutableDictionary dictionary];
-//    for (int i = 0; i < infos.count; ++i) {
-//        GlobalVariable *cls = [DDIRUtil getObjcClass:infos[i].target inModule:self.module];
-//        assert(nullptr != cls);
-//        [clsArray addObject:[NSValue valueWithPointer:cls]];
-//        cls->setName("");
-//        GlobalVariable *metaCls = dyn_cast<GlobalVariable>(cls->getInitializer()->getOperand(0));
-//        metaCls->setName("");
-//        GlobalVariable *ro = dyn_cast<GlobalVariable>(cls->getInitializer()->getOperand(4));
-//        ro->setName("");
-//        GlobalVariable *metaRo = dyn_cast<GlobalVariable>(metaCls->getInitializer()->getOperand(4));
-//        metaRo->setName("");
-//        if (0 == i) {
-//            flags = (uint32_t)dyn_cast<ConstantInt>(ro->getInitializer()->getOperand(0))->getZExtValue();
-//            classFlags = (uint32_t)dyn_cast<ConstantInt>(metaRo->getInitializer()->getOperand(0))->getZExtValue();
-//            clsName = [DDIRUtil stringFromGlobalVariable:getValue(ro, 4)];
-//            superCls = dyn_cast<GlobalVariable>(cls->getInitializer()->getOperand(1));
-//            metaSuperCls = dyn_cast<GlobalVariable>(metaCls->getInitializer()->getOperand(1));
-//            instanceStart = (uint32_t)dyn_cast<ConstantInt>(ro->getInitializer()->getOperand(1))->getZExtValue();
-//            instanceSize  = (uint32_t)dyn_cast<ConstantInt>(ro->getInitializer()->getOperand(2))->getZExtValue();
-//        }
-//        NSString *key = [NSString stringWithFormat:@"%d", i];
-//        NSMutableDictionary *dic = [configuration objectForKey:key];
-//        if (nil == dic) {
-//            dic = [NSMutableDictionary dictionary];
-//            [configuration setObject:dic forKey:key];
-//        }
-//        [dic setObject:@{@"instanceStart": @(dyn_cast<ConstantInt>(ro->getInitializer()->getOperand(1))->getZExtValue()),
-//                         @"instanceSize": @(dyn_cast<ConstantInt>(ro->getInitializer()->getOperand(2))->getZExtValue()),
-//                         @"flags": @(dyn_cast<ConstantInt>(ro->getInitializer()->getOperand(0))->getZExtValue()),
-//                         @"meta_flags": @(dyn_cast<ConstantInt>(metaRo->getInitializer()->getOperand(0))->getZExtValue())}
-//                forKey:clsName];
-//        // fuction
-//        void (^funBlock)(GlobalVariable *, NSMutableDictionary *) = ^(GlobalVariable *r, NSMutableDictionary *dic) {
-//            if (isNullValue(r, 5)) {
-//                GlobalVariable *v = getValue(r, 5);
-//                v->setName("");
-//                ConstantStruct *s = dyn_cast<ConstantStruct>(v->getInitializer());
-//                uint64_t count = (dyn_cast<ConstantInt>(s->getOperand(1)))->getZExtValue();
-//                ConstantArray *list = dyn_cast<ConstantArray>(s->getOperand(2));
-//                for (int j = 0; j < count; ++j) {
-//                    ConstantStruct *m = dyn_cast<ConstantStruct>(list->getOperand(j));
-//                    NSString *name = [DDIRUtil stringFromGlobalVariable:dyn_cast<GlobalVariable>((dyn_cast<ConstantExpr>(m->getOperand(0)))->getOperand(0))];
-//                    NSMutableArray *a = [dic objectForKey:name];
-//                    if (nil == a) {
-//                        a = [NSMutableArray array];
-//                        [dic setObject:a forKey:name];
-//                    }
-//                    [a addObject:@[[NSValue valueWithPointer:m], @(infos[i].index)]];
-//                }
-//            }
-//        };
-//        funBlock(ro, instMethodDic);
-//        funBlock(metaRo, classMethodDic);
-//        // protocol
-//        if (isNullValue(ro, 6)) {
-//            GlobalVariable *v = getValue(ro, 6);
-//            v->setName("");
-//            ConstantStruct *s = dyn_cast<ConstantStruct>(v->getInitializer());
-//            uint64_t count = (dyn_cast<ConstantInt>(s->getOperand(0)))->getZExtValue();
-//            ConstantArray *list = dyn_cast<ConstantArray>(s->getOperand(1));
-//            for (int j = 0; j < count; ++j) {
-//                GlobalVariable *pro = dyn_cast<GlobalVariable>(list->getOperand(j));
-//                NSString *name = [DDIRUtil getObjcProcotolName:pro];
-//                NSNumber *b = [procotolDic objectForKey:name];
-//                if (nil == b) {
-//                    procotolList.push_back(pro);
-//                    [procotolDic setObject:@(YES) forKey:name];
-//                }
-//
-//            }
-//        }
-//        // ivar
-//        if (isNullValue(ro, 7)) {
-//            GlobalVariable *v = getValue(ro, 7);
-//            v->setName("");
-//            ConstantStruct *s = dyn_cast<ConstantStruct>(v->getInitializer());
-//            uint64_t count = (dyn_cast<ConstantInt>(s->getOperand(1)))->getZExtValue();
-//            ConstantArray *list = dyn_cast<ConstantArray>(s->getOperand(2));
-//            for (int j = 0; j < count; ++j) {
-//                ConstantStruct *m = dyn_cast<ConstantStruct>(list->getOperand(j));
-//                NSString *name = [DDIRUtil stringFromGlobalVariable:dyn_cast<GlobalVariable>((dyn_cast<ConstantExpr>(m->getOperand(1)))->getOperand(0))];
-//                NSNumber *b = [ivarDic objectForKey:name];
-//                if (nil == b) {
-//                    ivarList.push_back(m);
-//                    [ivarDic setObject:@(YES) forKey:name];
-//                }
-//            }
-//        }
-//        // prop
-//        void (^propBlock)(GlobalVariable *, NSMutableDictionary *, std::vector<Constant *>&) = ^(GlobalVariable *r, NSMutableDictionary *dic, std::vector<Constant *>& l) {
-//            if (isNullValue(r, 9)) {
-//                GlobalVariable *v = getValue(r, 9);
-//                v->setName("");
-//                ConstantStruct *s = dyn_cast<ConstantStruct>(v->getInitializer());
-//                uint64_t count = (dyn_cast<ConstantInt>(s->getOperand(1)))->getZExtValue();
-//                ConstantArray *list = dyn_cast<ConstantArray>(s->getOperand(2));
-//                for (int j = 0; j < count; ++j) {
-//                    ConstantStruct *m = dyn_cast<ConstantStruct>(list->getOperand(j));
-//                    NSString *name = [DDIRUtil stringFromGlobalVariable:dyn_cast<GlobalVariable>((dyn_cast<ConstantExpr>(m->getOperand(0)))->getOperand(0))];
-//                    NSNumber *b = [dic objectForKey:name];
-//                    if (nil == b) {
-//                        l.push_back(m);
-//                        [dic setObject:@(YES) forKey:name];
-//                    }
-//
-//                }
-//            }
-//        };
-//        propBlock(ro, instPropDic, instPropList);
-//        propBlock(metaRo, classPropDic, classPropList);
-//    }
-//
-//    GlobalVariable *ctr = self.module->getNamedGlobal([varName cStringUsingEncoding:NSUTF8StringEncoding]);
-//    [self _mergeSameFunctionSets:instMethodDic toList:instMethodList control:ctr];
-//    [self _mergeSameFunctionSets:classMethodDic toList:classMethodList control:ctr];
-//
-//    GlobalVariable *cls = [DDIRUtil createObjcClass:[clsName cStringUsingEncoding:NSUTF8StringEncoding]
-//                                          withSuper:superCls
-//                                          metaSuper:metaSuperCls
-//                                              flags:flags
-//                                         classFlags:classFlags
-//                                      instanceStart:instanceStart
-//                                       instanceSize:instanceSize
-//                                         methodList:instMethodList
-//                                    classMethodList:classMethodList
-//                                           ivarList:ivarList
-//                                       protocolList:procotolList
-//                                           propList:instPropList
-//                                      classPropList:classPropList
-//                                           inModule:self.module];
-//    GlobalVariable *metaCls = dyn_cast<GlobalVariable>(cls->getInitializer()->getOperand(0));
-//    for (NSValue *v in clsArray) {
-//        GlobalVariable *c = (GlobalVariable *)v.pointerValue;
-//        std::vector<GlobalVariable *> gl;
-//        std::vector<ConstantStruct *> sl;
-//        for (User *u : c->users()) {
-//            if (nullptr != dyn_cast<GlobalVariable>(u)) {
-//                gl.push_back(dyn_cast<GlobalVariable>(u));
-//            } else if (nullptr != dyn_cast<ConstantStruct>(u)) {
-//                sl.push_back(dyn_cast<ConstantStruct>(u));
-//            }
-//        }
-//        for (GlobalVariable *v : gl) {
-//            GlobalVariable *n = [DDIRUtil createGlobalVariableName:v->getName().data()
-//                                                fromGlobalVariable:v
-//                                                              type:nullptr
-//                                                       initializer:cls
-//                                                          inModule:self.module];
-//            [DDIRUtil replaceGlobalVariable:v with:n];
-//            v->eraseFromParent();
-//        }
-//        for (ConstantStruct *s : sl) {
-//            s->handleOperandChange(c, cls);
-//        }
-//        GlobalVariable *metaC = dyn_cast<GlobalVariable>(c->getInitializer()->getOperand(0));
-//        std::vector<GlobalVariable *> metaGL;
-//        std::vector<ConstantStruct *> metaSl;
-//        for (User *u : metaC->users()) {
-//            if (nullptr != dyn_cast<GlobalVariable>(u)) {
-//                metaGL.push_back(dyn_cast<GlobalVariable>(u));
-//            } else if (nullptr != dyn_cast<ConstantStruct>(u)) {
-//                ConstantStruct *s = dyn_cast<ConstantStruct>(u);
-//                if (s != c->getInitializer()) {
-//                    metaSl.push_back(dyn_cast<ConstantStruct>(u));
-//                }
-//            }
-//        }
-//        for (GlobalVariable *v : metaGL) {
-//            GlobalVariable *n = [DDIRUtil createGlobalVariableName:v->getName().data()
-//                                                fromGlobalVariable:v
-//                                                              type:nullptr
-//                                                       initializer:metaCls
-//                                                          inModule:self.module];
-//            [DDIRUtil replaceGlobalVariable:v with:n];
-//            v->eraseFromParent();
-//        }
-//        for (ConstantStruct *s : metaSl) {
-//            s->handleOperandChange(metaC, metaCls);
-//        }
-//        c->removeDeadConstantUsers();
-//        metaC->removeDeadConstantUsers();
-//        [DDIRUtil removeGlobalValue:c inModule:self.module];
-//    }
-//}
 
 - (void)_mergeCategoryInfos:(nonnull NSArray<DDIRModuleMergeInfo *> *)infos
                    forClass:(nonnull NSString *)clsName
@@ -856,7 +640,8 @@ public:
     BasicBlock *baseBlock = BasicBlock::Create(self.module->getContext(), "", baseFun);
     BasicBlock *defaultBlock = BasicBlock::Create(self.module->getContext(), "", baseFun);
     IRBuilder<> builder(baseBlock);
-    SwitchInst * inst = builder.CreateSwitch(builder.CreateLoad(control->getInitializer()->getType(), control),
+    LoadInst *loadInst = builder.CreateLoad(control->getInitializer()->getType(), control);
+    SwitchInst * inst = builder.CreateSwitch(builder.CreateExtractValue(loadInst, 1),
                                              defaultBlock,
                                              (unsigned int)infos.count);
     BasicBlock *endBlock = defaultBlock;

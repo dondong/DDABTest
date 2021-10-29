@@ -3,10 +3,10 @@
 <plist version="1.0">
 <array>
 	<dict>
-		<key>module_name</key>
-		<string>DDTestStaticLibrary</string>
-		<key>tag</key>
-		<string>B</string>
+		<key>module_id</key>
+		<integer>4</integer>
+		<key>index</key>
+		<integer>0</integer>
 	</dict>
 </array>
 </plist>

@@ -8,6 +8,11 @@
 #ifndef DDCommonDefine_h
 #define DDCommonDefine_h
 
+struct dd_control {
+    uint32_t module_id;
+    uint32_t index;
+};
+
 struct dd_class_map_t {
     uintptr_t *cls;
     uintptr_t *super_cls;
@@ -23,19 +28,12 @@ struct dd_class_map_list_t {
 };
 // configuration key
 #define DDConfigModuleNameKey    @"module_name"
+#define DDConfigModuleIdKey      @"module_id"
+#define DDConfigComponentsKey    @"components"
 #define DDConfigTagKey           @"tag"
-// module key
-#define DDModuleClassSectionKey    @"cls_section"
-#define DDModuleCategorySectionKey @"cat_section"
-#define DDModuleClassKey           @"objc_class"
-#define DDModuleCategoryKey        @"objc_category"
-// item key
-#define DDItemDstKey @"dst"
-#define DDItemSrcKey @"src"
+#define DDConfigIndexKey         @"index"
 
 // macho
-#define DDDefaultCategorySection @"__dddd_clslist"
-#define DDDefaultClassSection    @"__dddd_clslist"
 #define DDDefaultClsMapSection   @"__dddd_clsmap"
 #define DDControlSection @"__dddd_control"
 

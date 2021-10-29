@@ -19,6 +19,8 @@ int main(int argc, const char * argv[]) {
             for (int i = 1; i + 1 < argc; i += 2) {
                 if (0 == strcmp(argv[i], "--name")) {
                     info.moduleName = [NSString stringWithCString:argv[i + 1] encoding:NSUTF8StringEncoding];
+                } else if (0 == strcmp(argv[i], "--id")) {
+                    info.moduleId = (UInt32)[[NSString stringWithCString:argv[i + 1] encoding:NSUTF8StringEncoding] integerValue];
                 } else if (0 == strcmp(argv[i], "--output")) {
                     info.outputPath = [NSString stringWithCString:argv[i + 1] encoding:NSUTF8StringEncoding];
                 } else if (0 == strcmp(argv[i], "--tmp")) {
@@ -32,7 +34,7 @@ int main(int argc, const char * argv[]) {
                     [libraries addObject:lib];
                 }
             }
-            if (libraries.count >= 2 && nil != info.moduleName && nil != info.outputPath) {
+            if (libraries.count >= 2 && nil != info.moduleName && info.moduleId > 0 && nil != info.outputPath) {
                 if (nil == info.tempDirectory) {
                     info.tempDirectory = [[info.outputPath stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"tmp"];
                 }

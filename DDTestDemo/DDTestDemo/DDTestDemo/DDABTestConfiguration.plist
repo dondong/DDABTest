@@ -4,73 +4,25 @@
 <dict>
 	<key>DDTestStaticLibrary</key>
 	<dict>
-		<key>B</key>
-		<dict>
-			<key>cat_section</key>
-			<string>__ 969_catlist</string>
-			<key>cls_section</key>
-			<string>__ 969_clslist</string>
-			<key>objc_category</key>
-			<array>
-				<dict>
-					<key>dst</key>
-					<string>NSObject(B2)</string>
-					<key>src</key>
-					<string>DDTestObject(Category)</string>
-				</dict>
-				<dict>
-					<key>dst</key>
-					<string>NSObject(B1)</string>
-					<key>src</key>
-					<string>NSObject(DDEmptyCategory)</string>
-				</dict>
-				<dict>
-					<key>dst</key>
-					<string>NSObject(Category)</string>
-					<key>src</key>
-					<string>NSObject(Category)</string>
-				</dict>
-				<dict>
-					<key>dst</key>
-					<string>NSObject(Category)</string>
-					<key>src</key>
-					<string>NSObject(Category)</string>
-				</dict>
-			</array>
-			<key>objc_class</key>
-			<array>
-				<dict>
-					<key>dst</key>
-					<string>DDTestObject</string>
-					<key>src</key>
-					<string>DDTestObject</string>
-				</dict>
-				<dict>
-					<key>dst</key>
-					<string>DDTestDemo</string>
-					<key>src</key>
-					<string>DDTestDemo</string>
-				</dict>
-				<dict>
-					<key>dst</key>
-					<string>DDTestChildObjectA</string>
-					<key>src</key>
-					<string>DDTestChildObjectA</string>
-				</dict>
-				<dict>
-					<key>dst</key>
-					<string>DDTestChildObjectB</string>
-					<key>src</key>
-					<string>DDTestChildObjectB</string>
-				</dict>
-				<dict>
-					<key>dst</key>
-					<string>DDTestSuperObject</string>
-					<key>src</key>
-					<string>DDTestSuperObject</string>
-				</dict>
-			</array>
-		</dict>
+		<key>components</key>
+		<array>
+			<dict>
+				<key>index</key>
+				<integer>0</integer>
+				<key>tag</key>
+				<string>A</string>
+			</dict>
+			<dict>
+				<key>index</key>
+				<integer>1</integer>
+				<key>tag</key>
+				<string>B</string>
+			</dict>
+		</array>
+		<key>module_id</key>
+		<integer>4</integer>
+		<key>module_name</key>
+		<string>DDTestStaticLibrary</string>
 	</dict>
 </dict>
 </plist>
