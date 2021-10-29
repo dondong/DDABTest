@@ -29,6 +29,7 @@ extern const char *IR_Objc_CategoryTypeName;
                                          withSuper:(llvm::GlobalVariable * _Nonnull)superCls
                                          metaSuper:(llvm::GlobalVariable * _Nonnull)metaSuperCls
                                              flags:(uint32_t)flags
+                                        classFlags:(uint32_t)classFlags
                                      instanceStart:(uint32_t)instanceStart
                                       instanceSize:(uint32_t)instanceSize
                                         methodList:(std::vector<llvm::Constant *>)methods

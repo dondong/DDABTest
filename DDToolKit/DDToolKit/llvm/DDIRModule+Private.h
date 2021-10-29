@@ -12,7 +12,7 @@
 #include <llvm/IR/Module.h>
 
 @interface DDIRModule()
-@property(nonatomic,assign,readwrite) llvm::Module *module;
+@property(nonatomic,assign,readwrite) llvm::Module * _Nullable module;
 @property(nonatomic,strong,readwrite,nonnull) NSString *path;
 @end
 

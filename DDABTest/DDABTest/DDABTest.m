@@ -14,12 +14,13 @@
 @implementation DDABTest
 + (void)load
 {
-    
     struct dd_macho *macho = NULL;
+    int index = 0;
     for (int i = 0; i < _dyld_image_count(); ++i) {
         NSString *name = [NSString stringWithFormat:@"%s", _dyld_get_image_name(i)];
         if ([[name stringByDeletingLastPathComponent] hasSuffix:@".app"]) {
             macho = dd_copy_macho_at_index(i);
+            index = i;
             break;
         }
     }
@@ -30,10 +31,16 @@
         struct dd_macho_segment segment = macho->segments[i];
         if (0 == strcmp(segment.seg_name, "__DATA")) {
             for (int j = 0; j < segment.msections; ++j) {
-                if (0 == strcmp(segment.sections[j].sect_name, "__dd_control")) {
+                if (0 == strcmp(segment.sections[j].sect_name, [DDControlSection cStringUsingEncoding:NSUTF8StringEncoding])) {
                     uint64_t *bast_ptr = (uint64_t *)segment.sections[j].addr;
                     *bast_ptr = 1;
-                    break;
+                } else if (0 == strcmp(segment.sections[j].sect_name, [DDDefaultClsMapSection cStringUsingEncoding:NSUTF8StringEncoding])) {
+                    uintptr_t *bast_ptr = (uintptr_t *)segment.sections[j].addr;
+                    int map_count = (int)segment.sections[j].size / sizeof(uintptr_t);
+                    for (int k = 0; k < map_count; ++k) {
+                        struct dd_class_map_list_t *map_ptr = (struct dd_class_map_list_t *)(char *)*(bast_ptr + k);
+                        _updateClass(map_ptr);
+                    }
                 }
             }
         }
@@ -170,6 +177,21 @@ static const char *_getClassName(char *classPtr)
 //    }
 //    return roPtr->name;
     return class_getName((__bridge Class)(void *)classPtr);
+}
+
+static void _updateClass(struct dd_class_map_list_t *list)
+{
+    for (int i = 0; i < list->count; ++i) {
+        struct dd_class_map_t *map = &list->map[i];
+        struct objc_class_t *cls = (struct objc_class_t *)map->cls;
+        struct objc_class_t *superCls = (struct objc_class_t *)map->super_cls;
+        struct class_ro_t *ro = (struct class_ro_t *)map->ro;
+        struct class_ro_t *metaRo = (struct class_ro_t *)map->meta_ro;
+        cls->data = (uintptr_t)ro;
+        ((struct objc_class_t *)cls->isa)->data = (uintptr_t)metaRo;
+        cls->superclass = (uintptr_t *)superCls;
+        ((struct objc_class_t *)cls->isa)->superclass = superCls->isa;
+    }
 }
 
 static bool _copyClass(char *srcClassPtr, char *dstClassPtr)

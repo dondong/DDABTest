@@ -57,7 +57,6 @@
     }
     
     NSMutableArray *llPathList = [NSMutableArray array];
-    NSMutableArray *moduleList = [NSMutableArray array];
     for (NSString *p in [[NSFileManager defaultManager] subpathsAtPath:library.tmpPath]) {
         if ([[[p pathExtension] lowercaseString] isEqualToString:@"o"]) {
             NSString *ofilePath = [library.tmpPath stringByAppendingPathComponent:p];
@@ -65,29 +64,14 @@
             NSString *llPath = [[ofilePath stringByDeletingPathExtension] stringByAppendingPathExtension:@"ll"];
             system([[NSString stringWithFormat:@"segedit %@ -extract __LLVM __bitcode %@", ofilePath, bcPath] cStringUsingEncoding:NSUTF8StringEncoding]);
             system([[NSString stringWithFormat:@"/usr/local/bin/llvm-dis %@ %@", bcPath, llPath] cStringUsingEncoding:NSUTF8StringEncoding]);
-//            DDIRModule *module = [DDIRModule moduleFromLLPath:llPath];
-//            if (nil != module) {
-//                [moduleList addObject:module];
-//            }
             [llPathList addObject:llPath];
             [[NSFileManager defaultManager] removeItemAtPath:ofilePath error:NULL];
             [[NSFileManager defaultManager] removeItemAtPath:bcPath error:NULL];
         }
     }
-//    library.moduleList = [NSArray arrayWithArray:moduleList];
     NSString *llPath = [library.tmpPath stringByAppendingPathComponent:[[library.path.lastPathComponent stringByDeletingPathExtension] stringByAppendingPathExtension:@"ll"]];
     [DDIRModule linkLLFiles:llPathList toLLFile:llPath];
     library.module = [DDIRModule moduleFromLLPath:llPath];
-
-//    NSMutableArray *classList = [[NSMutableArray alloc] init];
-//    NSMutableArray *categoryList = [[NSMutableArray alloc] init];
-//    for (DDIRModule *module in library.moduleList) {
-//        DDIRModuleData *data = [module getData];
-//        [classList addObjectsFromArray:data.objcClassList];
-//        [categoryList addObjectsFromArray:data.objcCategoryList];
-//    }
-//    library.classList = [NSArray arrayWithArray:classList];
-//    library.categoryList = [NSArray arrayWithArray:categoryList];
     return library;
 }
 

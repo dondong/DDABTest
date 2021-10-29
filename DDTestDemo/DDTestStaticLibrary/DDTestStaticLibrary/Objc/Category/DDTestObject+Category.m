@@ -7,17 +7,20 @@
 
 #import "DDTestObject+Category.h"
 
-//#if DemoTarget==1
+#if DemoTarget==1
 @implementation DDTestObject(Category)
-//#else
-//@implementation DDTestSuperObject(Category)
-//#endif
+#else
+@implementation DDTestSuperObject(Category)
+#endif
 + (void)categoryStaticTestObject
 {
-    NSLog(@"+[DDTestObject categoryStaticTestObject]");
+    DDLog(@"+[DDTestObject categoryStaticTestObject]");
 }
 - (void)categoryInstanceTestObject
 {
-    NSLog(@"-[DDTestObject categoryInstanceTestObject]");
+    DDLog(@"-[DDTestObject categoryInstanceTestObject]");
 }
+@end
+
+@implementation DDTestObject(Empty)
 @end

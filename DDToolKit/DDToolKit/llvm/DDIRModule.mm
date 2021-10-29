@@ -13,18 +13,21 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/IRBuilder.h>
-#include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/IR/Constants.h>
+#include <llvm/Transforms/Utils/Cloning.h>
+#include <llvm/Transforms/IPO/Internalize.h>
 #include <llvm/Support/ToolOutputFile.h>
 #include <llvm/Support/FileSystem.h>
+#include <llvm/Support/MemoryBuffer.h>
+#include <llvm/Bitcode/BitcodeReader.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/Linker/Linker.h>
-#include <llvm/Transforms/IPO/Internalize.h>
 #include <system_error>
 
 using namespace llvm;
 
 @interface DDIRModuleData()
+@property(nonatomic,assign,readwrite) BOOL isBitcode;
 @property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRStringVariable *> *stringList;
 @property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRObjCClass *> *objcClassList;
 @property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRObjCCategory *> *objcCategoryList;
@@ -47,7 +50,6 @@ using namespace llvm;
     module.path = path;
     return module;
 }
-
 + (void)linkLLFiles:(nonnull NSArray<NSString *> *)pathes toLLFile:(nonnull NSString *)outputPath
 {
     if (pathes.count <= 0) {
@@ -231,22 +233,10 @@ using namespace llvm;
     ptr.release();
 }
 
-- (void)addControlVariable:(nonnull NSString *)name section:(nonnull NSString *)section
-{
-    GlobalVariable *ret = new GlobalVariable(*self.module,
-                                              Type::getInt32Ty(self.module->getContext()),
-                                              false,
-                                              GlobalValue::InternalLinkage,
-                                              Constant::getIntegerValue(Type::getInt32Ty(self.module->getContext()), APInt(32, 0, false)),
-                                              [name cStringUsingEncoding:NSUTF8StringEncoding]);
-    ret->setAlignment(MaybeAlign(8));
-    ret->setSection([section cStringUsingEncoding:NSUTF8StringEncoding]);
-    [DDIRUtil insertValue:ConstantExpr::getBitCast(cast<Constant>(ret), Type::getInt8PtrTy(self.module->getContext()))
-            toGlobalArray:[DDIRUtil getLlvmCompilerUsedInModule:self.module]
-                       at:0
-                 inModule:self.module];
-}
-
+// class is a metaclass
+#define RO_META               (1<<0)
+// class compiled with ARC
+#define RO_IS_ARC             (1<<7)
 - (void)addEmptyClass:(nonnull NSString *)className
 {
     GlobalVariable *cls = [DDIRUtil getObjcClass:className inModule:self.module];
@@ -276,9 +266,10 @@ using namespace llvm;
         [DDIRUtil createObjcClass:[className cStringUsingEncoding:NSUTF8StringEncoding]
                         withSuper:nsobject
                         metaSuper:metaNSObject
-                            flags:128
-                    instanceStart:8
-                     instanceSize:8
+                            flags:RO_IS_ARC
+                       classFlags:(RO_META | RO_IS_ARC)
+                    instanceStart:8   // NSObject size
+                     instanceSize:8   // NSObject size
                        methodList:std::vector<llvm::Constant *>()
                   classMethodList:std::vector<llvm::Constant *>()
                          ivarList:std::vector<llvm::Constant *>()

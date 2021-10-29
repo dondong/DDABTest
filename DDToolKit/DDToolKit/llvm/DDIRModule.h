@@ -31,7 +31,6 @@ NS_ASSUME_NONNULL_BEGIN
 /*
  change
  */
-- (void)addControlVariable:(nonnull NSString *)name section:(nonnull NSString *)section;
 // class
 - (void)addEmptyClass:(nonnull NSString *)className;
 - (BOOL)replaceObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName;

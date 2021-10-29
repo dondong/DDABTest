@@ -192,7 +192,7 @@
         }
     }
     NSString *llfile = [info.tempDirectory stringByAppendingPathComponent:[info.moduleName stringByAppendingPathExtension:@"ll"]];
-    [DDIRModule mergeLLFiles:llfilePathes toLLFile:llfile];
+    [DDIRModule mergeLLFiles:llfilePathes withControlId:4 toLLFile:llfile];
     
     NSString *archDir = [[info.outputPath stringByDeletingLastPathComponent] stringByAppendingPathComponent:[NSString stringWithFormat:@"tmp_%lu", random()]];
     [[NSFileManager defaultManager] removeItemAtPath:archDir error:NULL];

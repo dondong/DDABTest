@@ -29,6 +29,7 @@ const char *IR_Objc_CategoryTypeName     = "struct._category_t";
                                          withSuper:(llvm::GlobalVariable * _Nonnull)superCls
                                          metaSuper:(llvm::GlobalVariable * _Nonnull)metaSuperCls
                                              flags:(uint32_t)flags
+                                        classFlags:(uint32_t)classFlags
                                      instanceStart:(uint32_t)instanceStart
                                       instanceSize:(uint32_t)instanceSize
                                         methodList:(std::vector<llvm::Constant *>)methods
@@ -68,7 +69,7 @@ const char *IR_Objc_CategoryTypeName     = "struct._category_t";
                                              withIsa:nsobject
                                           superClass:metaSuperCls
                                                cache:cache
-                                               flags:129
+                                               flags:classFlags
                                        instanceStart:40
                                         instanceSize:40
                                           methodList:classMethods
@@ -97,34 +98,9 @@ const char *IR_Objc_CategoryTypeName     = "struct._category_t";
         toGlobalArray:[self getLlvmCompilerUsedInModule:module]
                    at:0
              inModule:module];
-    GlobalVariable *label = nullptr;
-    for (GlobalVariable &v : module->getGlobalList()) {
-        if (v.GlobalValue::hasSection()) {
-            if (0 == strncmp(v.getSection().data(), "__DATA,__objc_classlist", 23)) {
-                label = std::addressof(v);
-                break;
-            }
-        }
-    }
-    if (nullptr == label) {
-        std::vector<Constant *> list;
-        Constant *val = ConstantArray::get(ArrayType::get(Type::getInt8PtrTy(module->getContext()), 0), list);
-        label = new GlobalVariable(*module,
-                                   val->getType(),
-                                   false,
-                                   GlobalValue::PrivateLinkage,
-                                   val,
-                                   "OBJC_LABEL_CLASS_$");
-        label->setSection("__DATA,__objc_classlist,regular,no_dead_strip");
-        label->setAlignment(MaybeAlign(8));
-        [self insertValue:ConstantExpr::getBitCast(cast<Constant>(label), Type::getInt8PtrTy(module->getContext()))
-            toGlobalArray:[self getLlvmCompilerUsedInModule:module]
-                       at:0
-                 inModule:module];
-    }
     [self insertValue:ConstantExpr::getBitCast(cast<Constant>(cls), Type::getInt8PtrTy(module->getContext()))
-        toGlobalArray:label
-                   at:0
+toGlobalArrayWithSection:"__DATA,__objc_classlist"
+          defaultName:"OBJC_LABEL_CLASS_$"
              inModule:module];
     return cls;
 }
@@ -303,34 +279,9 @@ const char *IR_Objc_CategoryTypeName     = "struct._category_t";
         toGlobalArray:[self getLlvmCompilerUsedInModule:module]
                    at:0
              inModule:module];
-    GlobalVariable *label = nullptr;
-    for (GlobalVariable &v : module->getGlobalList()) {
-        if (v.GlobalValue::hasSection()) {
-            if (0 == strncmp(v.getSection().data(), "__DATA,__objc_catlist", 21)) {
-                label = std::addressof(v);
-                break;
-            }
-        }
-    }
-    if (nullptr == label) {
-        std::vector<Constant *> list;
-        Constant *val = ConstantArray::get(ArrayType::get(Type::getInt8PtrTy(module->getContext()), 0), list);
-        label = new GlobalVariable(*module,
-                                   val->getType(),
-                                   false,
-                                   GlobalValue::PrivateLinkage,
-                                   val,
-                                   "OBJC_LABEL_CATEGORY_$");
-        label->setSection("__DATA,__objc_catlist,regular,no_dead_strip");
-        label->setAlignment(MaybeAlign(8));
-        [self insertValue:ConstantExpr::getBitCast(cast<Constant>(label), Type::getInt8PtrTy(module->getContext()))
-            toGlobalArray:[self getLlvmCompilerUsedInModule:module]
-                       at:0
-                 inModule:module];
-    }
     [self insertValue:ConstantExpr::getBitCast(cast<Constant>(ret), Type::getInt8PtrTy(module->getContext()))
-        toGlobalArray:label
-                   at:0
+toGlobalArrayWithSection:"__DATA,__objc_catlist"
+          defaultName:"OBJC_LABEL_CATEGORY_$"
              inModule:module];
     return ret;
 }

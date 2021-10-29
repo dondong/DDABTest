@@ -17,6 +17,8 @@
 {
     self = [super init];
     if (self) {
+        _f32 = 0.32;
+        _d64 = 0.64;
     }
     return self;
 }
@@ -33,6 +35,7 @@
 {
     [super instanceMethodTest];
     DDLog(@"-[DDTestObject instanceMethodTest]");
+    DDLog(@"check ivar  _f32: %f,  _d64: %f", _f32, _d64);
     [self instanceMethodTestForObject];
     [self instanceMethodTestForObject_Privaty];
 }
@@ -56,4 +59,8 @@
 {
     DDLog(@"-[DDTestObject() instanceMethodTestForObject_Privaty]");
 }
+@end
+
+
+@implementation DDTestSuperObjectEmpty
 @end

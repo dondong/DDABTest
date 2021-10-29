@@ -59,6 +59,5 @@
 {
     DDLog(@"+[DDProtocolObjectB<DDProtocolB> protocolBClassOptional_A]");
 }
-@synthesize protoReqStr;
 
 @end

@@ -206,7 +206,9 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
     }
 }
 
-+ (nonnull NSString *)changeGlobalValueName:(llvm::GlobalValue * _Nonnull)variable from:(nonnull NSString *)oldName to:(nonnull NSString *)newName
++ (nonnull NSString *)changeGlobalValueName:(llvm::GlobalValue * _Nonnull)variable
+                                       from:(nonnull NSString *)oldName
+                                         to:(nonnull NSString *)newName
 {
     assert(nullptr != variable);
     NSString *n = nil;
@@ -228,7 +230,10 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
     }
 }
 
-+ (void)changeStringValue:(llvm::ConstantStruct * _Nonnull)target atOperand:(NSUInteger)index to:(nonnull NSString *)newValue inModule:(llvm::Module * _Nonnull)module
++ (void)changeStringValue:(llvm::ConstantStruct * _Nonnull)target
+                atOperand:(NSUInteger)index
+                       to:(nonnull NSString *)newValue
+                 inModule:(llvm::Module * _Nonnull)module
 {
     ConstantExpr *ptr = dyn_cast<ConstantExpr>(target->getOperand((int)index));
     if (nullptr != ptr) {
@@ -265,7 +270,10 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
     }
 }
 
-+ (llvm::GlobalVariable * _Nonnull)insertValue:(llvm::Constant * _Nonnull)value toGlobalArray:(llvm::GlobalVariable * _Nonnull)variable at:(NSUInteger)index inModule:(llvm::Module * _Nonnull)module
++ (llvm::GlobalVariable * _Nonnull)insertValue:(llvm::Constant * _Nonnull)value
+                                 toGlobalArray:(llvm::GlobalVariable * _Nonnull)variable
+                                            at:(NSUInteger)index
+                                      inModule:(llvm::Module * _Nonnull)module
 {
     Constant *arr = dyn_cast<Constant>(variable->getInitializer());
     if (0 <= index && index <= arr->getNumOperands()) {
@@ -310,7 +318,9 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
     return variable;
 }
 
-+ (llvm::GlobalVariable *_Nonnull)removeValue:(llvm::Constant *_Nonnull)var fromGlobalArray:(llvm::GlobalVariable *_Nonnull)variable inModule:(llvm::Module * _Nonnull)module
++ (llvm::GlobalVariable *_Nonnull)removeValue:(llvm::Constant *_Nonnull)var
+                              fromGlobalArray:(llvm::GlobalVariable *_Nonnull)variable
+                                     inModule:(llvm::Module * _Nonnull)module
 {
     ConstantArray *arr = dyn_cast<ConstantArray>(variable->getInitializer());
     int index = -1;
@@ -327,7 +337,9 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
     }
 }
 
-+ (llvm::GlobalVariable *_Nonnull)removeValueAtIndex:(NSUInteger)index fromGlobalArray:(llvm::GlobalVariable *_Nonnull)variable  inModule:(llvm::Module * _Nonnull)module
++ (llvm::GlobalVariable *_Nonnull)removeValueAtIndex:(NSUInteger)index
+                                     fromGlobalArray:(llvm::GlobalVariable *_Nonnull)variable
+                                            inModule:(llvm::Module * _Nonnull)module
 {
     Constant *arr = dyn_cast<Constant>(variable->getInitializer());
     if (0 <= index && index < arr->getNumOperands()) {
@@ -368,6 +380,42 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
         return newVariable;
     }
     return variable;
+}
+
++ (llvm::GlobalVariable * _Nonnull)insertValue:(llvm::Constant * _Nonnull)value
+                      toGlobalArrayWithSection:(const char * _Nonnull)sectionName
+                                   defaultName:(const char * _Nonnull)name
+                                      inModule:(llvm::Module * _Nonnull)module
+{
+    GlobalVariable *label = nullptr;
+    for (GlobalVariable &v : module->getGlobalList()) {
+        if (v.GlobalValue::hasSection()) {
+            if (0 == strncmp(v.getSection().data(), sectionName, strlen(sectionName))) {
+                label = std::addressof(v);
+                break;
+            }
+        }
+    }
+    if (nullptr == label) {
+        std::vector<Constant *> list;
+        Constant *val = ConstantArray::get(ArrayType::get(Type::getInt8PtrTy(module->getContext()), 0), list);
+        label = new GlobalVariable(*module,
+                                   val->getType(),
+                                   false,
+                                   GlobalValue::PrivateLinkage,
+                                   val,
+                                   name);
+        label->setSection([[NSString stringWithFormat:@"%s,regular,no_dead_strip", sectionName] cStringUsingEncoding:NSUTF8StringEncoding]);
+        label->setAlignment(MaybeAlign(8));
+        [self insertValue:ConstantExpr::getBitCast(cast<Constant>(label), Type::getInt8PtrTy(module->getContext()))
+            toGlobalArray:[self getLlvmCompilerUsedInModule:module]
+                       at:0
+                 inModule:module];
+    }
+    return [self insertValue:value
+               toGlobalArray:label
+                          at:0
+                    inModule:module];
 }
 
 + (nonnull NSString *)stringFromGlobalVariable:(llvm::GlobalVariable * _Nonnull)var

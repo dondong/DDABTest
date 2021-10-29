@@ -38,9 +38,20 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index);
                 atOperand:(NSUInteger)index
                        to:(nonnull NSString *)newValue
                  inModule:(llvm::Module * _Nonnull)module;
-+ (llvm::GlobalVariable * _Nonnull)insertValue:(llvm::Constant * _Nonnull)value toGlobalArray:(llvm::GlobalVariable * _Nonnull)variable at:(NSUInteger)index inModule:(llvm::Module * _Nonnull)module;
-+ (llvm::GlobalVariable *_Nonnull)removeValue:(llvm::Constant *_Nonnull)var fromGlobalArray:(llvm::GlobalVariable *_Nonnull)variable inModule:(llvm::Module * _Nonnull)module;
-+ (llvm::GlobalVariable *_Nonnull)removeValueAtIndex:(NSUInteger)index fromGlobalArray:(llvm::GlobalVariable *_Nonnull)variable  inModule:(llvm::Module * _Nonnull)module;
++ (llvm::GlobalVariable * _Nonnull)insertValue:(llvm::Constant * _Nonnull)value
+                                 toGlobalArray:(llvm::GlobalVariable * _Nonnull)variable
+                                            at:(NSUInteger)index
+                                      inModule:(llvm::Module * _Nonnull)module;
++ (llvm::GlobalVariable *_Nonnull)removeValue:(llvm::Constant *_Nonnull)var
+                              fromGlobalArray:(llvm::GlobalVariable *_Nonnull)variable
+                                     inModule:(llvm::Module * _Nonnull)module;
++ (llvm::GlobalVariable *_Nonnull)removeValueAtIndex:(NSUInteger)index
+                                     fromGlobalArray:(llvm::GlobalVariable *_Nonnull)variable
+                                            inModule:(llvm::Module * _Nonnull)module;
++ (llvm::GlobalVariable * _Nonnull)insertValue:(llvm::Constant * _Nonnull)value
+                      toGlobalArrayWithSection:(const char * _Nonnull)sectionName
+                                   defaultName:(const char * _Nonnull)name
+                                      inModule:(llvm::Module * _Nonnull)module;
 // atributes
 + (nonnull NSString *)stringFromGlobalVariable:(llvm::GlobalVariable * _Nonnull)var;
 @end

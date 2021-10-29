@@ -9,7 +9,14 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface DDTestChildObjectA : DDTestObject
+@interface DDTestChildObjectA : DDTestObject {
+#if DemoTarget==1
+    NSArray *_arr;
+#else
+    NSSet *_set;
+    NSDictionary *_dic;
+#endif
+}
 
 @end
 
