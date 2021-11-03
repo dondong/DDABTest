@@ -41,7 +41,7 @@ const char *IR_Objc_CategoryTypeName     = "struct._category_t";
                                           inModule:(llvm::Module * _Nonnull)module
 {
     [self getObjcClassTypeInModule:module];
-    GlobalVariable *name = [self _createObjcClassName:className inModule:module];
+    GlobalVariable *name = [self createObjcClassName:className inModule:module];
     GlobalVariable *cache = module->getNamedGlobal("_objc_empty_cache");
     if (nullptr == cache) {
         cache = new GlobalVariable(*module,
@@ -223,7 +223,7 @@ toGlobalArrayWithSection:"__DATA,__objc_classlist"
     NSDictionary *dic = [self getObjcCategoryTypeInModule:module];
     std::vector<Constant *> datas;
     Constant *zero = ConstantInt::get(Type::getInt32Ty(module->getContext()), 0);
-    GlobalVariable *cName = [self _createObjcClassName:categoryName inModule:module];
+    GlobalVariable *cName = [self createObjcClassName:categoryName inModule:module];
     datas.push_back(ConstantExpr::getInBoundsGetElementPtr(cName->getInitializer()->getType(), cName, (Constant *[]){zero, zero}));
     datas.push_back(cls);
     StructType *categoryType     = (StructType *)[[dic objectForKey:[NSString stringWithCString:IR_Objc_CategoryTypeName encoding:NSUTF8StringEncoding]] pointerValue];
@@ -308,7 +308,7 @@ toGlobalArrayWithSection:"__DATA,__objc_catlist"
     std::vector<Constant *> proList;
     proList.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(module->getContext())));
     // mangledName
-    GlobalVariable *name = [self _createObjcClassName:protocolName inModule:module];
+    GlobalVariable *name = [self createObjcClassName:protocolName inModule:module];
     proList.push_back(ConstantExpr::getInBoundsGetElementPtr(name->getInitializer()->getType(), name, (Constant *[]){zero, zero}));
     // protocols
     if (protocols.size() > 0) {
@@ -500,19 +500,38 @@ toGlobalArrayWithSection:"__DATA,__objc_catlist"
     return ret;
 }
 
-+ (llvm::GlobalVariable * _Nonnull)_createObjcClassName:(const char *)name inModule:(llvm::Module * _Nonnull)module
++ (llvm::GlobalVariable * _Nonnull)createObjcMethodName:(const char *)name inModule:(llvm::Module * _Nonnull)module
+{
+    return [self _createObjcStringVariable:name name:"OBJC_METH_VAR_NAME_" section:"__TEXT,__objc_methname,cstring_literals" inModule:module];
+}
+
++ (llvm::GlobalVariable * _Nonnull)createObjcVarType:(const char *)name inModule:(llvm::Module * _Nonnull)module
+{
+    return [self _createObjcStringVariable:name name:"OBJC_METH_VAR_TYPE_" section:"__TEXT,__objc_methtype,cstring_literals" inModule:module];
+}
+
++ (llvm::GlobalVariable * _Nonnull)createObjcClassName:(const char *)name inModule:(llvm::Module * _Nonnull)module
+{
+    return [self _createObjcStringVariable:name name:"OBJC_CLASS_NAME_" section:"__TEXT,__objc_classname,cstring_literals" inModule:module];
+}
+
+
++ (llvm::GlobalVariable * _Nonnull)_createObjcStringVariable:(const char *)str
+                                                        name:(const char *)name
+                                                     section:(const char *)section
+                                                    inModule:(llvm::Module * _Nonnull)module
 {
     Constant *zero = ConstantInt::get(Type::getInt32Ty(module->getContext()), 0);
-    Constant *nameVal = ConstantDataArray::getString(module->getContext(), StringRef(name), true);
+    Constant *strVal = ConstantDataArray::getString(module->getContext(), StringRef(str), true);
     GlobalVariable *ret = new GlobalVariable(*module,
-                                              nameVal->getType(),
-                                              true,
-                                              GlobalValue::PrivateLinkage,
-                                              nameVal,
-                                              "OBJC_CLASS_NAME_");
+                                             strVal->getType(),
+                                             true,
+                                             GlobalValue::PrivateLinkage,
+                                             strVal,
+                                             name);
     ret->setAlignment(MaybeAlign(1));
     ret->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
-    ret->setSection("__TEXT,__objc_classname,cstring_literals");
+    ret->setSection(section);
     [self insertValue:ConstantExpr::getInBoundsGetElementPtr(ret->getInitializer()->getType(), ret, (Constant *[]){zero, zero})
         toGlobalArray:[self getLlvmCompilerUsedInModule:module]
                    at:0

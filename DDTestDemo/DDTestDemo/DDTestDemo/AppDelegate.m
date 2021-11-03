@@ -12,12 +12,25 @@
 
 @end
 
+@interface DDTestDemo(test)
++ (void)myCategory;
+@end
+
+
+@implementation DDTestDemo(test)
++ (void)myCategory
+{
+    NSLog(@"main app category test");
+}
+@end
+
 @implementation AppDelegate
 
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     // Override point for customization after application launch.
     [DDTestDemo test];
+    [DDTestDemo myCategory];
     return YES;
 }
 

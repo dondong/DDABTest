@@ -57,6 +57,18 @@ extern const char *IR_Objc_CategoryTypeName;
                                              propList:(std::vector<llvm::Constant *>)props
                                         classPropList:(std::vector<llvm::Constant *>)classProps
                                              inModule:(llvm::Module * _Nonnull)module;
++ (llvm::GlobalVariable * _Nonnull)createMethodList:(std::vector<llvm::Constant *>)list
+                                           inModule:(llvm::Module * _Nonnull)module;
++ (llvm::GlobalVariable * _Nonnull)createProtocolList:(std::vector<llvm::Constant *>)list
+                                             inModule:(llvm::Module * _Nonnull)module;
++ (llvm::GlobalVariable * _Nonnull)createPropList:(std::vector<llvm::Constant *>)list
+                                         inModule:(llvm::Module * _Nonnull)module;
++ (llvm::GlobalVariable * _Nonnull)createObjcMethodName:(const char *)name
+                                               inModule:(llvm::Module * _Nonnull)module;
++ (llvm::GlobalVariable * _Nonnull)createObjcVarType:(const char *)name
+                                            inModule:(llvm::Module * _Nonnull)module;
++ (llvm::GlobalVariable * _Nonnull)createObjcClassName:(const char *)name
+                                              inModule:(llvm::Module * _Nonnull)module;
 // get
 + (nullable NSString *)getObjcClassName:(llvm::GlobalVariable * _Nonnull)cls;
 + (nullable NSString *)getObjcCategoryName:(llvm::GlobalVariable * _Nonnull)cat;

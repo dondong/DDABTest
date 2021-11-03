@@ -18,6 +18,7 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index);
 // get
 + (llvm::GlobalVariable * _Nonnull)getLlvmCompilerUsedInModule:(llvm::Module * _Nonnull)module;
 + (llvm::GlobalVariable * _Nonnull)getLlvmUsedInModule:(llvm::Module * _Nonnull)module;
++ (llvm::GlobalVariable * _Nullable)getGlabalArrayWithSection:(const char * _Nonnull)sectionName inModule:(llvm::Module * _Nonnull)module;
 + (llvm::StructType * _Nullable)getStructType:(const char * _Nonnull)name inModule:(llvm::Module * _Nonnull)module;
 // create
 + (llvm::GlobalVariable * _Nonnull)createGlobalVariableName:(const char * _Nonnull)name

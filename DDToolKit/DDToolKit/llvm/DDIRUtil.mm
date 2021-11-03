@@ -58,6 +58,21 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
     return used;
 }
 
++ (llvm::GlobalVariable * _Nullable)getGlabalArrayWithSection:(const char * _Nonnull)sectionName
+                                                     inModule:(llvm::Module * _Nonnull)module
+{
+    GlobalVariable *label = nullptr;
+    for (GlobalVariable &v : module->getGlobalList()) {
+        if (v.GlobalValue::hasSection()) {
+            if (0 == strncmp(v.getSection().data(), sectionName, strlen(sectionName))) {
+                label = std::addressof(v);
+                break;
+            }
+        }
+    }
+    return label;
+}
+
 + (llvm::StructType * _Nullable)getStructType:(const char * _Nonnull)name inModule:(llvm::Module * _Nonnull)module
 {
     for (StructType *type : module->getIdentifiedStructTypes()) {
@@ -387,15 +402,7 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
                                    defaultName:(const char * _Nonnull)name
                                       inModule:(llvm::Module * _Nonnull)module
 {
-    GlobalVariable *label = nullptr;
-    for (GlobalVariable &v : module->getGlobalList()) {
-        if (v.GlobalValue::hasSection()) {
-            if (0 == strncmp(v.getSection().data(), sectionName, strlen(sectionName))) {
-                label = std::addressof(v);
-                break;
-            }
-        }
-    }
+    GlobalVariable *label = [self getGlabalArrayWithSection:sectionName inModule:module];
     if (nullptr == label) {
         std::vector<Constant *> list;
         Constant *val = ConstantArray::get(ArrayType::get(Type::getInt8PtrTy(module->getContext()), 0), list);

@@ -90,6 +90,11 @@ struct entsize_list_tt {
     uintptr_t first;
 };
 
+struct protocol_list_t {
+    uint64_t count;
+    uintptr_t first;
+};
+
 struct class_ro_t {
     uint32_t flags;
     uint32_t instanceStart;
@@ -98,7 +103,7 @@ struct class_ro_t {
     const uint8_t *ivarLayout;
     const char *name;
     struct entsize_list_tt * baseMethodList;
-    uintptr_t * baseProtocols;
+    struct protocol_list_t * baseProtocols;
     struct entsize_list_tt * ivars;
     uintptr_t * weakIvarLayout;
     struct entsize_list_tt * baseProperties;
@@ -117,12 +122,39 @@ static void _updateClass(struct dd_class_map_list_t *list)
         struct dd_class_map_t *map = &list->map[i];
         struct objc_class_t *cls = (struct objc_class_t *)map->cls;
         struct objc_class_t *superCls = (struct objc_class_t *)map->super_cls;
-        struct class_ro_t *ro = (struct class_ro_t *)map->ro;
-        struct class_ro_t *metaRo = (struct class_ro_t *)map->meta_ro;
-        cls->data = (uintptr_t)ro;
-        ((struct objc_class_t *)cls->isa)->data = (uintptr_t)metaRo;
         cls->superclass = (uintptr_t *)superCls;
         ((struct objc_class_t *)cls->isa)->superclass = superCls->isa;
+        _updateClassRo((struct class_ro_t *)map->ro, (struct class_ro_t *)cls->data);
+        _updateClassRo((struct class_ro_t *)map->meta_ro, (struct class_ro_t *)((struct objc_class_t *)cls->isa)->data);
+    }
+}
+
+static void _updateClassRo(struct class_ro_t *srcRo, struct class_ro_t *dstRo)
+{
+    dstRo->flags = srcRo->flags;
+    dstRo->instanceStart = srcRo->instanceStart;
+    dstRo->instacneSize  = srcRo->instacneSize;
+    dstRo->reserved      = srcRo->reserved;
+    dstRo->ivarLayout     = srcRo->ivarLayout;
+    dstRo->weakIvarLayout = srcRo->weakIvarLayout;
+    dstRo->ivars          = srcRo->ivars;
+    if (NULL != dstRo->baseMethodList && NULL != srcRo->baseMethodList) {
+        void *dstPtr = (void *)&dstRo->baseMethodList->first;
+        dstPtr += (dstRo->baseMethodList->count - srcRo->baseMethodList->count) * srcRo->baseMethodList->entsizeAndFlags;
+        void *srcPtr = (void *)&srcRo->baseMethodList->first;
+        memcpy(dstPtr, srcPtr, srcRo->baseMethodList->count * srcRo->baseMethodList->entsizeAndFlags);
+    }
+    if (NULL != dstRo->baseProtocols && NULL != srcRo->baseProtocols) {
+        void *dstPtr = (void *)&dstRo->baseProtocols;
+        dstPtr += (dstRo->baseProtocols->count - srcRo->baseProtocols->count) * sizeof(void *);
+        void *srcPtr = (void *)&srcRo->baseProtocols->first;
+        memcpy(dstPtr, srcPtr, srcRo->baseProtocols->count * sizeof(void *));
+    }
+    if (NULL != dstRo->baseProperties && NULL != srcRo->baseProperties) {
+        void *dstPtr = (void *)&dstRo->baseProperties->first;
+        dstPtr += (dstRo->baseProperties->count - srcRo->baseProperties->count) * srcRo->baseProperties->entsizeAndFlags;
+        void *srcPtr = (void *)&srcRo->baseProperties->first;
+        memcpy(dstPtr, srcPtr, srcRo->baseProperties->count * srcRo->baseProperties->entsizeAndFlags);
     }
 }
 @end
