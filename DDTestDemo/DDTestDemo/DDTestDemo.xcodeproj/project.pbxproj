@@ -38,9 +38,7 @@
 		A3944A4D26FB45EE0082ADE0 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		A3B596B02700228500508419 /* libDDTestStaticLibraryA.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libDDTestStaticLibraryA.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		A3B596B22700229800508419 /* libDDTestStaticLibraryB.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libDDTestStaticLibraryB.a; sourceTree = BUILT_PRODUCTS_DIR; };
-		A3B596C1270091B000508419 /* libDDTestStaticLibrary.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libDDTestStaticLibrary.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		A3B596C6270096B300508419 /* libDDTestStaticLibrary.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libDDTestStaticLibrary.a; sourceTree = BUILT_PRODUCTS_DIR; };
-		A3F9056326FC864C0068EE2F /* libDDTestStaticLibrary.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libDDTestStaticLibrary.a; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -60,10 +58,8 @@
 			isa = PBXGroup;
 			children = (
 				A3B596C6270096B300508419 /* libDDTestStaticLibrary.a */,
-				A3B596C1270091B000508419 /* libDDTestStaticLibrary.a */,
 				A3B596B22700229800508419 /* libDDTestStaticLibraryB.a */,
 				A3B596B02700228500508419 /* libDDTestStaticLibraryA.a */,
-				A3F9056326FC864C0068EE2F /* libDDTestStaticLibrary.a */,
 				A374FCB126FC24E80015D54D /* libDDABTest.a */,
 			);
 			name = Frameworks;

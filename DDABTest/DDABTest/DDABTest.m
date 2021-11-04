@@ -38,6 +38,21 @@
         }
         [dic setObject:val forKey:key];
     }
+    
+    struct category_t *catList = NULL;
+    int categoryCount = 0;
+    for (int i = 0; i < macho->msegments; ++i) {
+        struct dd_macho_segment segment = macho->segments[i];
+        if (0 == strcmp(segment.seg_name, "__DATA") ||
+            0 == strcmp(segment.seg_name, "__DATA_CONST")) {
+            for (int j = 0; j < segment.msections; ++j) {
+                if (0 == strcmp(segment.sections[j].sect_name, "__objc_catlist")) {
+                    catList = (struct category_t *)segment.sections[j].addr;
+                    categoryCount = (int)segment.sections[j].size / sizeof(struct category_t *);
+                }
+            }
+        }
+    }
     for (int i = 0; i < macho->msegments; ++i) {
         struct dd_macho_segment segment = macho->segments[i];
         if (0 == strcmp(segment.seg_name, "__DATA")) {
@@ -60,6 +75,16 @@
                         NSNumber *val = [dic objectForKey:@(map_ptr->module_id)];
                         if (nil != val && [val integerValue] == map_ptr->index) {
                             _updateClass(map_ptr);
+                        }
+                    }
+                } else if (0 == strcmp(segment.sections[j].sect_name, [DDDefaultCatMapSection cStringUsingEncoding:NSUTF8StringEncoding])) {
+                    uintptr_t *bast_ptr = (uintptr_t *)segment.sections[j].addr;
+                    int map_count = (int)segment.sections[j].size / sizeof(uintptr_t);
+                    for (int k = 0; k < map_count; ++k) {
+                        struct dd_category_map_list_t *map_ptr = (struct dd_category_map_list_t *)(char *)*(bast_ptr + k);
+                        NSNumber *val = [dic objectForKey:@(map_ptr->module_id)];
+                        if (nil != val && [val integerValue] == map_ptr->index) {
+                            _updateCategory(map_ptr, catList, categoryCount);
                         }
                     }
                 }
@@ -124,12 +149,20 @@ static void _updateClass(struct dd_class_map_list_t *list)
         struct objc_class_t *superCls = (struct objc_class_t *)map->super_cls;
         cls->superclass = (uintptr_t *)superCls;
         ((struct objc_class_t *)cls->isa)->superclass = superCls->isa;
-        _updateClassRo((struct class_ro_t *)map->ro, (struct class_ro_t *)cls->data);
-        _updateClassRo((struct class_ro_t *)map->meta_ro, (struct class_ro_t *)((struct objc_class_t *)cls->isa)->data);
+        _updateClassRo((struct class_ro_t *)map->ro,
+                       (struct class_ro_t *)cls->data,
+                       map->method_header,
+                       map->property_header,
+                       map->protocol_header);
+        _updateClassRo((struct class_ro_t *)map->meta_ro,
+                       (struct class_ro_t *)((struct objc_class_t *)cls->isa)->data,
+                       map->meta_method_header,
+                       map->meta_property_header,
+                       map->meta_protocol_header);
     }
 }
 
-static void _updateClassRo(struct class_ro_t *srcRo, struct class_ro_t *dstRo)
+static void _updateClassRo(struct class_ro_t *srcRo, struct class_ro_t *dstRo, uintptr_t *methodHeader, uintptr_t *propertyHeader, uintptr_t *protocolHeader)
 {
     dstRo->flags = srcRo->flags;
     dstRo->instanceStart = srcRo->instanceStart;
@@ -139,22 +172,123 @@ static void _updateClassRo(struct class_ro_t *srcRo, struct class_ro_t *dstRo)
     dstRo->weakIvarLayout = srcRo->weakIvarLayout;
     dstRo->ivars          = srcRo->ivars;
     if (NULL != dstRo->baseMethodList && NULL != srcRo->baseMethodList) {
-        void *dstPtr = (void *)&dstRo->baseMethodList->first;
-        dstPtr += (dstRo->baseMethodList->count - srcRo->baseMethodList->count) * srcRo->baseMethodList->entsizeAndFlags;
-        void *srcPtr = (void *)&srcRo->baseMethodList->first;
-        memcpy(dstPtr, srcPtr, srcRo->baseMethodList->count * srcRo->baseMethodList->entsizeAndFlags);
-    }
-    if (NULL != dstRo->baseProtocols && NULL != srcRo->baseProtocols) {
-        void *dstPtr = (void *)&dstRo->baseProtocols;
-        dstPtr += (dstRo->baseProtocols->count - srcRo->baseProtocols->count) * sizeof(void *);
-        void *srcPtr = (void *)&srcRo->baseProtocols->first;
-        memcpy(dstPtr, srcPtr, srcRo->baseProtocols->count * sizeof(void *));
+        uintptr_t dstPtr = (uintptr_t)&dstRo->baseMethodList->first;
+        for (int i = 0; i <= dstRo->baseMethodList->count - srcRo->baseMethodList->count; ++i) {
+            if (*(void **)dstPtr == methodHeader) {
+                void *srcPtr = (void *)&srcRo->baseMethodList->first;
+                memcpy((void *)dstPtr, srcPtr, srcRo->baseMethodList->count * srcRo->baseMethodList->entsizeAndFlags);
+                break;
+            }
+            dstPtr += dstRo->baseMethodList->entsizeAndFlags;
+        }
     }
     if (NULL != dstRo->baseProperties && NULL != srcRo->baseProperties) {
-        void *dstPtr = (void *)&dstRo->baseProperties->first;
-        dstPtr += (dstRo->baseProperties->count - srcRo->baseProperties->count) * srcRo->baseProperties->entsizeAndFlags;
-        void *srcPtr = (void *)&srcRo->baseProperties->first;
-        memcpy(dstPtr, srcPtr, srcRo->baseProperties->count * srcRo->baseProperties->entsizeAndFlags);
+        uintptr_t dstPtr = (uintptr_t)&dstRo->baseProperties->first;
+        for (int i = 0; i <= dstRo->baseProperties->count - srcRo->baseProperties->count; ++i) {
+            if (*(void **)dstPtr == propertyHeader) {
+                void *srcPtr = (void *)&srcRo->baseProperties->first;
+                memcpy((void *)dstPtr, srcPtr, srcRo->baseProperties->count * srcRo->baseProperties->entsizeAndFlags);
+                break;
+            }
+            dstPtr += dstRo->baseProperties->entsizeAndFlags / sizeof(void *);
+        }
+    }
+    if (NULL != dstRo->baseProtocols && NULL != srcRo->baseProtocols) {
+        void *dstPtr = (void *)&dstRo->baseProtocols->first;
+        for (int i = 0; i <= dstRo->baseProtocols->count - srcRo->baseProtocols->count; ++i) {
+            if (dstPtr == protocolHeader) {
+                void *srcPtr = (void *)&srcRo->baseProtocols->first;
+                memcpy(dstPtr, srcPtr, srcRo->baseProtocols->count * sizeof(void *));
+                break;
+            }
+            dstPtr += sizeof(void *);
+        }
+    }
+}
+
+struct category_t {
+    const char *name;
+    uintptr_t *cls;
+    struct entsize_list_tt *instanceMethods;
+    struct entsize_list_tt *classMethods;
+    struct protocol_list_t *protocols;
+    struct entsize_list_tt *instanceProperties;
+    struct entsize_list_tt *_classProperties;
+};
+
+static void _updateCategory(struct dd_category_map_list_t *list, struct category_t catList[], int catCount)
+{
+    for (int i = 0; i < list->count; ++i) {
+        bool ishit = false;
+        struct dd_category_map_t *map = &list->map[i];
+        struct category_t *category = (struct category_t *)map->category;
+        for (int j = 0; j < catCount; ++j) {
+            if (catList[j].cls == map->cls) {
+                if (NULL != catList[j].instanceMethods && NULL != category->instanceMethods) {
+                    uintptr_t dstPtr = (uintptr_t)&catList[j].instanceMethods->first;
+                    for (int i = 0; i <= catList[j].instanceMethods->count - category->instanceMethods->count; ++i) {
+                        if (*(void **)dstPtr == map->instance_method_header) {
+                            void *srcPtr = (void *)&category->instanceMethods->first;
+                            memcpy((void *)dstPtr, srcPtr, category->instanceMethods->count * category->instanceMethods->entsizeAndFlags);
+                            ishit = true;
+                            break;
+                        }
+                        dstPtr += catList[j].instanceMethods->entsizeAndFlags;
+                    }
+                }
+                if (NULL != catList[j].classMethods && NULL != category->classMethods) {
+                    uintptr_t dstPtr = (uintptr_t)&catList[j].classMethods->first;
+                    for (int i = 0; i <= catList[j].classMethods->count - category->classMethods->count; ++i) {
+                        if (*(void **)dstPtr == map->class_method_header) {
+                            void *srcPtr = (void *)&category->classMethods->first;
+                            memcpy((void *)dstPtr, srcPtr, category->classMethods->count * category->classMethods->entsizeAndFlags);
+                            ishit = true;
+                            break;
+                        }
+                        dstPtr += catList[j].classMethods->entsizeAndFlags;
+                    }
+                }
+                if (NULL != catList[j].protocols && NULL != category->protocols) {
+                    uintptr_t dstPtr = (uintptr_t)&catList[j].protocols->first;
+                    for (int i = 0; i <= catList[j].protocols->count - category->protocols->count; ++i) {
+                        if (*(void **)dstPtr == map->protocol_header) {
+                            void *srcPtr = (void *)&category->protocols->first;
+                            memcpy((void *)dstPtr, srcPtr, category->protocols->count * sizeof(void *));
+                            ishit = true;
+                            break;
+                        }
+                        dstPtr += sizeof(void *);
+                    }
+                }
+                if (NULL != catList[j].instanceProperties && NULL != category->instanceProperties) {
+                    uintptr_t dstPtr = (uintptr_t)&catList[j].instanceProperties->first;
+                    for (int i = 0; i <= catList[j].instanceProperties->count - category->instanceProperties->count; ++i) {
+                        if (*(void **)dstPtr == map->instace_property_header) {
+                            void *srcPtr = (void *)&category->instanceProperties->first;
+                            memcpy((void *)dstPtr, srcPtr, category->instanceProperties->count * category->instanceProperties->entsizeAndFlags);
+                            ishit = true;
+                            break;
+                        }
+                        dstPtr += catList[j].instanceProperties->entsizeAndFlags;
+                    }
+                }
+                if (NULL != catList[j]._classProperties && NULL != category->_classProperties) {
+                    uintptr_t dstPtr = (uintptr_t)&catList[j]._classProperties->first;
+                    for (int i = 0; i <= catList[j]._classProperties->count - category->_classProperties->count; ++i) {
+                        if (*(void **)dstPtr == map->class_property_header) {
+                            void *srcPtr = (void *)&category->_classProperties->first;
+                            memcpy((void *)dstPtr, srcPtr, category->_classProperties->count * category->_classProperties->entsizeAndFlags);
+                            ishit = true;
+                            break;
+                        }
+                        dstPtr += catList[j]._classProperties->entsizeAndFlags;
+                    }
+                }
+            }
+            if (true == ishit) {
+                break;
+            }
+        }
     }
 }
 @end
