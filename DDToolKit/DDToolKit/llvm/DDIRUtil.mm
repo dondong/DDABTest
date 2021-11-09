@@ -358,7 +358,7 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
 {
     Constant *arr = dyn_cast<Constant>(variable->getInitializer());
     if (0 <= index && index < arr->getNumOperands()) {
-        StringRef oldName = variable->getName();
+        StringRef oldName(variable->getName().data());
         variable->setName(Twine([[NSString stringWithFormat:@"%s..", oldName.data()] cStringUsingEncoding:NSUTF8StringEncoding]));
         std::vector<Constant *> list;
         for (int i = 0; i < arr->getNumOperands(); ++i) {

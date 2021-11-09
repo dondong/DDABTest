@@ -6,6 +6,7 @@
 //
 
 #import "DDTestDemo.h"
+#import "DDTestLoad.h"
 #import "DDTestChildObjectA.h"
 #import "DDTestChildObjectB.h"
 #import "NSObject+Category.h"
@@ -25,6 +26,11 @@
 + (void)test
 {
     DDLog(@"Begin test ...");
+    
+    DDLog(@"Load");
+    [DDTestLoad classTest];
+    DDTestLoad *load = [[DDTestLoad alloc] init];
+    [load instanceTest];
     
     DDLog(@"Inberit");
     [DDTestChildObjectA staticMethodTest];

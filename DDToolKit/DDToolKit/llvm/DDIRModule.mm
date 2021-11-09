@@ -62,6 +62,8 @@ using namespace llvm;
         // merge module
         BOOL hasCls = false;
         BOOL hasCat = false;
+        BOOL hasNoLazyCls = false;
+        BOOL hasNoLazyCat = false;
         NSMutableDictionary *protocolDic = [NSMutableDictionary dictionary];
         for (int i = 0; i < pathes.count; ++i) {
             SMDiagnostic err;
@@ -73,12 +75,18 @@ using namespace llvm;
                     if (v.hasSection()) {
                         BOOL isCls = false;
                         BOOL isCat = false;
+                        BOOL isNoLazyCls = false;
+                        BOOL isNoLazyCat = false;
                         if (0 == strncmp(v.getSection().data(), "__DATA,__objc_classlist", 23)) {
                             isCls = true;
                         } else if (0 == strncmp(v.getSection().data(), "__DATA,__objc_catlist", 21)) {
                             isCat = true;
+                        } else if (0 == strncmp(v.getSection().data(), "__DATA,__objc_nlclslist", 23)) {
+                            isNoLazyCls = true;
+                        } else if (0 == strncmp(v.getSection().data(), "__DATA,__objc_nlcatlist", 23)) {
+                            isNoLazyCat = true;
                         }
-                        if (isCls || isCat) {
+                        if (isCls || isCat || isNoLazyCls || isNoLazyCat) {
                             v.setLinkage(GlobalValue::AppendingLinkage);
                             v.setDSOLocal(false);
                         } else if (0 == strncmp(v.getSection().data(), "__DATA,__objc_protolist", 23)) {
@@ -107,13 +115,16 @@ using namespace llvm;
                                 [protocolDic setObject:@(YES) forKey:name];
                             }
                         }
-                        if ((hasCls && isCls) || (hasCat && isCat)) {
+                        if ((hasCls && isCls) || (hasCat && isCat) ||
+                            (hasNoLazyCls && isNoLazyCls) || (hasNoLazyCat && isNoLazyCat)) {
                             [DDIRUtil removeValue:std::addressof(v)
                                   fromGlobalArray:[DDIRUtil getLlvmCompilerUsedInModule:ptr.get()]
                                          inModule:ptr.get()];
                         }
                         hasCls |= isCls;
                         hasCat |= isCat;
+                        hasNoLazyCls |= isNoLazyCls;
+                        hasNoLazyCat |= isNoLazyCat;
                     }
                 }
                 for (NSValue *val in removeArray) {
@@ -126,12 +137,13 @@ using namespace llvm;
         for (GlobalVariable &v : globallist) {
             if (v.hasSection()) {
                 if (0 == strncmp(v.getSection().data(), "__DATA,__objc_classlist", 23) ||
-                    0 == strncmp(v.getSection().data(), "__DATA,__objc_catlist", 21)) {
+                    0 == strncmp(v.getSection().data(), "__DATA,__objc_catlist", 21) ||
+                    0 == strncmp(v.getSection().data(), "__DATA,__objc_nlclslist", 23) ||
+                    0 == strncmp(v.getSection().data(), "__DATA,__objc_nlcatlist", 23)) {
                     v.setLinkage(GlobalValue::PrivateLinkage);
                 }
             }
         }
-        
         StringRef output([outputPath cStringUsingEncoding:NSUTF8StringEncoding]);
         std::error_code ec;
         raw_fd_stream stream(output, ec);
