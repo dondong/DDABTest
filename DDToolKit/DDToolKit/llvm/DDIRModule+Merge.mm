@@ -21,6 +21,7 @@
 using namespace llvm;
 #define ConfigurationKey_ControlId   @"control_id"
 #define ConfigurationKey_LoadFuction @"load_fun"
+#define ConfigurationKey_InitFuction @"init_fun"
 #define ConfigurationKey_Class(index)    ([NSString stringWithFormat:@"class_%d", (int)index])
 #define ConfigurationKey_Category(index) ([NSString stringWithFormat:@"category_%d", (int)index])
 
@@ -41,15 +42,20 @@ using namespace llvm;
     NSMutableDictionary *mergeCategoryList = [NSMutableDictionary dictionary];
     NSMutableDictionary *mergeProtocolList = [NSMutableDictionary dictionary];
     NSMutableDictionary *mergeProtocolMap = [NSMutableDictionary dictionary];
+    NSMutableDictionary *mergeFunctionList = [NSMutableDictionary dictionary];
+    NSMutableDictionary *initFuncList = [NSMutableDictionary dictionary];
     [mergeConfiguration setObject:@(controlId) forKey:ConfigurationKey_ControlId];
+    [mergeConfiguration setObject:initFuncList forKey:ConfigurationKey_InitFuction];
     for (int i = 0; i < moduleList.count; ++i) {
         DDIRModule *module = moduleList[i];
         [mergeConfiguration setObject:[NSMutableArray array] forKey:ConfigurationKey_Class(i)];
         [mergeConfiguration setObject:[NSMutableArray array] forKey:ConfigurationKey_Category(i)];
+        [initFuncList setObject:[NSMutableArray array] forKey:@(i)];
         NSString *appendStr = [NSString stringWithFormat:@"%lu", (unsigned long)module.path.hash % 10000];
         NSMutableArray<NSArray<NSString *> *> *classChangeList    = [NSMutableArray array];
         NSMutableArray<NSArray<NSString *> *> *categoryChangeList = [NSMutableArray array];
         NSMutableArray<NSArray<NSString *> *> *protocolChangeList = [NSMutableArray array];
+        NSMutableArray<NSArray<NSString *> *> *functionChangeList = [NSMutableArray array];
         DDIRModuleData *data = [module getData];
         for (DDIRObjCClass *c in data.objcClassList) {
             if (nil == [mergeClassList objectForKey:c.className]) {
@@ -79,6 +85,18 @@ using namespace llvm;
                 [mergeProtocolMap setObject:p.protocolName forKey:newName];
             }
         }
+        for (DDIRFunction *f in data.ctorFunctionList) {
+            [[initFuncList objectForKey:@(i)] addObject:f.name];
+        }
+        for (DDIRFunction *f in data.functionList) {
+            if (nil == [mergeFunctionList objectForKey:f.name]) {
+                [mergeFunctionList setObject:@[[DDIRModuleMergeInfo infoWithTarget:f.name index:i]].mutableCopy forKey:f.name];
+            } else {
+                NSString *newName = [f.name stringByAppendingString:appendStr];
+                [[mergeFunctionList objectForKey:f.name] addObject:[DDIRModuleMergeInfo infoWithTarget:newName index:i]];
+                [functionChangeList addObject:@[f.name, newName]];
+            }
+        }
         [module executeChangesWithBlock:^(DDIRModule * _Nullable m) {
             for (NSArray *arr in protocolChangeList) {
                 [m replaceObjcProtocol:arr[0] withNewComponentName:arr[1]];
@@ -88,6 +106,9 @@ using namespace llvm;
             }
             for (NSArray *arr in classChangeList) {
                 [m replaceObjcClass:arr[0] withNewComponentName:arr[1]];
+            }
+            for (NSArray *arr in functionChangeList) {
+                [m replaceFunction:arr[0] withNewComponentName:arr[1]];
             }
         }];
     }
@@ -212,6 +233,14 @@ using namespace llvm;
 //                v->eraseFromParent();
 //            }
 //        }
+        // function
+        for (NSString *name in mergeFunctionList.allKeys) {
+            NSArray *funs = [mergeFunctionList objectForKey:name];
+            if (funs.count > 0) {
+                [m _mergeFunctions:funs withControl:control];
+            }
+        }
+        [m _handleInitFunctionWithControlVariable:control configuration:mergeConfiguration];
     }];
 }
 
@@ -1091,6 +1120,56 @@ using namespace llvm;
      toGlobalArrayWithSection:"__DATA,__objc_nlclslist"
                   defaultName:"OBJC_LABEL_NONLAZY_CLASS_$"
                      inModule:self.module];
+    }
+}
+
+- (void)_handleInitFunctionWithControlVariable:(GlobalVariable *)control configuration:(nonnull NSMutableDictionary *)configuration
+{
+    GlobalVariable *ctorVal = self.module->getGlobalVariable("llvm.global_ctors");
+    if (nullptr != ctorVal) {
+        ctorVal->eraseFromParent();
+        ctorVal = nullptr;
+    }
+    NSDictionary *initDic = [configuration objectForKey:ConfigurationKey_InitFuction];
+    if (initDic.count > 0) {
+        uint32_t controlId = (uint32_t)[[configuration objectForKey:ConfigurationKey_ControlId] unsignedIntegerValue];
+        FunctionType *funType = FunctionType::get(Type::getVoidTy(self.module->getContext()), std::vector<Type *>(), false);
+        Function *fun = Function::Create(funType, GlobalValue::InternalLinkage, [[NSString stringWithFormat:@"initFunction_%u", controlId] cStringUsingEncoding:NSUTF8StringEncoding], self.module);
+        BasicBlock *switchBlock = BasicBlock::Create(self.module->getContext(), "", fun);
+        BasicBlock *defaultBlock = BasicBlock::Create(self.module->getContext(), "", fun);
+        IRBuilder<> defaultBuilder(defaultBlock);
+        defaultBuilder.CreateRetVoid();
+        IRBuilder<> switchBuilder(switchBlock);
+        LoadInst *loadInst = switchBuilder.CreateLoad(control->getInitializer()->getType(), control);
+        SwitchInst * inst = switchBuilder.CreateSwitch(switchBuilder.CreateExtractValue(loadInst, 1),
+                                                       defaultBlock,
+                                                       (unsigned int)initDic.count);
+        for (NSNumber *index in initDic.allKeys) {
+            BasicBlock *block = BasicBlock::Create(self.module->getContext(), "", fun);
+            IRBuilder<> builder(block);
+            for (NSString *funName in [initDic objectForKey:index]) {
+                Function *initFun = self.module->getFunction([funName cStringUsingEncoding:NSUTF8StringEncoding]);
+                builder.CreateCall(initFun, std::vector<Value *>());
+            }
+            builder.CreateRetVoid();
+            inst->addCase(ConstantInt::get(Type::getInt32Ty(self.module->getContext()), [index integerValue]), block);
+        }
+        std::vector<Type *> type;
+        type.push_back(Type::getInt32Ty(self.module->getContext()));
+        type.push_back(FunctionType::get(Type::getVoidTy(self.module->getContext()), std::vector<Type *>(), false)->getPointerTo());
+        type.push_back(Type::getInt8PtrTy(self.module->getContext()));
+        StructType *strType = StructType::get(self.module->getContext(), type);
+        std::vector<Constant *> data;
+        data.push_back(ConstantInt::get(Type::getInt32Ty(self.module->getContext()), 65535));
+        data.push_back(fun);
+        data.push_back(ConstantPointerNull::get(PointerType::getInt8PtrTy(self.module->getContext())));
+        Constant *val = ConstantArray::get(ArrayType::get(strType, 1), ConstantStruct::get(strType, data));
+        new GlobalVariable(*self.module,
+                           val->getType(),
+                           false,
+                           GlobalValue::AppendingLinkage,
+                           val,
+                           "llvm.global_ctors");
     }
 }
 

@@ -17,6 +17,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic,strong,readonly,nonnull) NSArray<DDIRObjCClass *> *objcClassList;
 @property(nonatomic,strong,readonly,nonnull) NSArray<DDIRObjCCategory *> *objcCategoryList;
 @property(nonatomic,strong,readonly,nonnull) NSArray<DDIRObjCProtocol *> *objcProtocolList;
+@property(nonatomic,strong,readonly,nonnull) NSArray<DDIRFunction *> *ctorFunctionList;
 @property(nonatomic,strong,readonly,nonnull) NSArray<DDIRFunction *> *functionList;
 @end
 
@@ -31,6 +32,8 @@ NS_ASSUME_NONNULL_BEGIN
 /*
  change
  */
+// function
+- (BOOL)replaceFunction:(nonnull NSString *)funName withNewComponentName:(nonnull NSString *)newName;
 // class
 - (void)addEmptyClass:(nonnull NSString *)className;
 - (BOOL)replaceObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName;

@@ -50,7 +50,7 @@
         }
     }
     NSString *llfile = [info.tempDirectory stringByAppendingPathComponent:[info.moduleName stringByAppendingPathExtension:@"ll"]];
-    [DDIRModule mergeLLFiles:llfilePathes withControlId:4 toLLFile:llfile];
+    [DDIRModule mergeLLFiles:llfilePathes withControlId:info.moduleId toLLFile:llfile];
     
     NSString *archDir = [[info.outputPath stringByDeletingLastPathComponent] stringByAppendingPathComponent:[NSString stringWithFormat:@"tmp_%lu", random()]];
     [[NSFileManager defaultManager] removeItemAtPath:archDir error:NULL];
@@ -81,9 +81,9 @@
         system([[NSString stringWithFormat:@"lipo -create %@ -output %@", archPath, info.outputPath] cStringUsingEncoding:NSUTF8StringEncoding]);
     }
     [[NSFileManager defaultManager] removeItemAtPath:archDir error:NULL];
-    for (DDStaticLibraryInfo *i in info.inputLibraries) {
-        [i.lib clear];
-    }
+//    for (DDStaticLibraryInfo *i in info.inputLibraries) {
+//        [i.lib clear];
+//    }
     
     NSMutableDictionary *outputConfig = nil;
     if ([[NSFileManager defaultManager] fileExistsAtPath:info.configPath]) {

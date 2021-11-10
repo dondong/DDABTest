@@ -14,6 +14,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface DDIRObjCMethod : DDIRGlobalVariable
 @property(nonatomic,strong,nonnull) NSString *methodName;
+@property(nonatomic,strong,nonnull) NSString *functionName;
 @end
 
 @interface DDIRObjCProtocol : DDIRGlobalVariable

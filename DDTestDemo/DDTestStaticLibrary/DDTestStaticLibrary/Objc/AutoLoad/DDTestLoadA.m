@@ -13,3 +13,10 @@
     DDLog(@"+[DDTestLoadA load]");
 }
 @end
+
+
+__attribute__((constructor))
+void initFuncTestA(void)
+{
+    DDLog(@"initFuncTestA");
+}

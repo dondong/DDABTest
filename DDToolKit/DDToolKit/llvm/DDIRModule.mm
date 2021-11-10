@@ -32,6 +32,7 @@ using namespace llvm;
 @property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRObjCClass *> *objcClassList;
 @property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRObjCCategory *> *objcCategoryList;
 @property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRObjCProtocol *> *objcProtocolList;
+@property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRFunction *> *ctorFunctionList;
 @property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRFunction *> *functionList;
 @end
 
@@ -165,6 +166,7 @@ using namespace llvm;
     DDIRModuleData *data = [[DDIRModuleData alloc] init];
     
     NSMutableDictionary *globalDic = [NSMutableDictionary dictionary];
+    NSMutableDictionary *objcFuncDic = [NSMutableDictionary dictionary];
     NSMutableArray *stringList = [[NSMutableArray alloc] init];
     NSMutableArray *objcClassList = [[NSMutableArray alloc] init];
     NSMutableArray *objcCategoryList = [[NSMutableArray alloc] init];
@@ -187,12 +189,24 @@ using namespace llvm;
                 for (int i = 0; i < arr->getNumOperands(); ++i) {
                     DDIRObjCClass *objcClass = _objCClassFromVariable(dyn_cast<GlobalVariable>(dyn_cast<ConstantExpr>(arr->getOperand(i))->getOperand(0)), globalDic);
                     [objcClassList addObject:objcClass];
+                    for (DDIRObjCMethod *method in objcClass.methodList) {
+                        [objcFuncDic setObject:@(YES) forKey:method.functionName];
+                    }
+                    for (DDIRObjCMethod *method in objcClass.isa.methodList) {
+                        [objcFuncDic setObject:@(YES) forKey:method.functionName];
+                    }
                 }
             } else if (0 == strncmp(v.getSection().data(), "__DATA,__objc_catlist", 21)) {
                 ConstantArray *arr = dyn_cast<ConstantArray>(v.getInitializer());
                 for (int i = 0; i < arr->getNumOperands(); ++i) {
                     DDIRObjCCategory *objcCategory = _objCCategoryFromVariable(dyn_cast<GlobalVariable>(dyn_cast<ConstantExpr>(arr->getOperand(i))->getOperand(0)), globalDic);
                     [objcCategoryList addObject:objcCategory];
+                    for (DDIRObjCMethod *method in objcCategory.instanceMethodList) {
+                        [objcFuncDic setObject:@(YES) forKey:method.functionName];
+                    }
+                    for (DDIRObjCMethod *method in objcCategory.classMethodList) {
+                        [objcFuncDic setObject:@(YES) forKey:method.functionName];
+                    }
                 }
             } else if (0 == strncmp(v.getSection().data(), "__DATA,__objc_protolist", 23)) {
                 DDIRObjCProtocol *objcProtocol = _objcProtocolFromVariable(dyn_cast<GlobalVariable>(v.getInitializer()), globalDic);
@@ -205,17 +219,30 @@ using namespace llvm;
     data.objcCategoryList = [NSArray arrayWithArray:objcCategoryList];
     data.objcProtocolList = [NSArray arrayWithArray:objcProcotolList];
     
+    NSMutableArray *ctorFunctionList = [NSMutableArray array];
+    GlobalVariable *ctorVal = ptr->getGlobalVariable("llvm.global_ctors");
+    if (nullptr != ctorVal && ctorVal->hasInitializer()) {
+        ConstantArray *arr = dyn_cast<ConstantArray>(ctorVal->getInitializer());
+        for (int i = 0; i < arr->getNumOperands(); ++i) {
+            Function *f = dyn_cast<Function>(arr->getOperand(i)->getOperand(1));
+            DDIRFunction *function = [[DDIRFunction alloc] init];
+            function.name = [NSString stringWithFormat:@"%s", f->getName().data()];
+            [ctorFunctionList addObject:function];
+        }
+    }
+    data.ctorFunctionList = [NSArray arrayWithArray:ctorFunctionList];
+    
     NSMutableArray *functionNameList = [[NSMutableArray alloc] init];
     Module::FunctionListType &functionList = ptr->getFunctionList();
     for (Function &f : functionList) {
-        DDIRFunction *function = [[DDIRFunction alloc] init];
-        function.name = [NSString stringWithFormat:@"%s", f.getName().data()];
-        if (f.getBasicBlockList().size() > 0) {
-            function.type = DDIRFunctionType_Define;
-        } else {
-            function.type = DDIRFunctionType_Declare;
+        NSString *funName = [NSString stringWithFormat:@"%s", f.getName().data()];
+        if (nil == [objcFuncDic objectForKey:funName]) {
+            DDIRFunction *function = [[DDIRFunction alloc] init];
+            function.name = funName;
+            if (f.getBasicBlockList().size() > 0) {
+                [functionNameList addObject:function];
+            }
         }
-        [functionNameList addObject:function];
     }
     data.functionList = [NSArray arrayWithArray:functionNameList];
     ptr.release();
@@ -243,6 +270,16 @@ using namespace llvm;
     ptr->print(stream, nullptr);
     stream.close();
     ptr.release();
+}
+
+- (BOOL)replaceFunction:(nonnull NSString *)funName withNewComponentName:(nonnull NSString *)newName
+{
+    Function *function = self.module->getFunction([funName cStringUsingEncoding:NSUTF8StringEncoding]);
+    if (nullptr != function) {
+        function->setName([newName cStringUsingEncoding:NSUTF8StringEncoding]);
+        return true;
+    }
+    return false;
 }
 
 // class is a metaclass
@@ -658,8 +695,11 @@ static NSArray<DDIRObjCMethod *> *_objcMethodListFromStruct(ConstantStruct *meth
     ConstantArray *list = dyn_cast<ConstantArray>(methodPtr->getOperand(2));
     for (int i = 0; i < count; ++i) {
         DDIRObjCMethod *method = [[DDIRObjCMethod alloc] init];
-        ConstantStruct *m = dyn_cast<ConstantStruct>(list->getOperand(i));
-        method.methodName = [DDIRUtil stringFromGlobalVariable:dyn_cast<GlobalVariable>((dyn_cast<ConstantExpr>(m->getOperand(0)))->getOperand(0))];
+        ConstantStruct *str = dyn_cast<ConstantStruct>(list->getOperand(i));
+        method.methodName = [DDIRUtil stringFromGlobalVariable:dyn_cast<GlobalVariable>(dyn_cast<ConstantExpr>(str->getOperand(0))->getOperand(0))];
+        if (false == str->getOperand(2)->isNullValue()) {
+            method.functionName = [NSString stringWithFormat:@"%s", dyn_cast<Function>(dyn_cast<ConstantExpr>(str->getOperand(2))->getOperand(0))->getName().data()];
+        }
         [methodList addObject:method];
     }
     return [NSArray arrayWithArray:methodList];

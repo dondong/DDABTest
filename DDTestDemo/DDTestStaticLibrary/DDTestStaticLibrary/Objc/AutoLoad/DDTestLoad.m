@@ -31,3 +31,18 @@
     DDLog(@"+[DDTestLoad initialize]");
 }
 @end
+
+__attribute__((constructor))
+void initFuncTest(void)
+{
+    DDLog(@"initFuncTest");
+}
+
+#if DemoTarget==1
+#else
+__attribute__((constructor))
+#endif
+void initFuncTestOption(void)
+{
+    DDLog(@"initFuncTestOption");
+}
