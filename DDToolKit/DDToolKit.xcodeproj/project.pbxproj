@@ -63,6 +63,7 @@
 		A3A5F363272144B400326770 /* DDIRModule+Merge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "DDIRModule+Merge.h"; sourceTree = "<group>"; };
 		A3A5F364272144B400326770 /* DDIRModule+Merge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = "DDIRModule+Merge.mm"; sourceTree = "<group>"; };
 		A3A5F36627214AEF00326770 /* DDIRModule+Private.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "DDIRModule+Private.h"; sourceTree = "<group>"; };
+		A3B59B32273CCC8300F8A7E2 /* DDToolKitDefine.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DDToolKitDefine.h; sourceTree = "<group>"; };
 		A3B8DC63271D77BC00E7C76B /* DDIRUtil+Objc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "DDIRUtil+Objc.h"; sourceTree = "<group>"; };
 		A3B8DC64271D77BC00E7C76B /* DDIRUtil+Objc.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = "DDIRUtil+Objc.mm"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -104,6 +105,7 @@
 			children = (
 				A39DD36026F4444300B1EFF7 /* common */,
 				A30C5CE526F332D600227E78 /* llvm */,
+				A3B59B32273CCC8300F8A7E2 /* DDToolKitDefine.h */,
 				A30C5CE226F332D600227E78 /* DDStaticLibrary.h */,
 				A30C5CE426F332D600227E78 /* DDStaticLibrary.m */,
 				A30C5CF226F332D600227E78 /* DDABTestTool.h */,

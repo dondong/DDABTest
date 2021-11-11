@@ -150,8 +150,7 @@ static void _updateClass(struct dd_class_map_list_t *list)
         struct class_ro_t *ro = NULL;
         struct class_rw_t *rw = (struct class_rw_t *)(cls->data & FAST_DATA_MASK);
         if ((rw->flags & RW_REALIZED) > 0) {
-            ro = rw->ro;
-//            _objc_flush_caches((__bridge Class _Nullable)(cls));
+            assert("Unkown case! The class should not be realized");
         } else {
             ro = (struct class_ro_t *)rw;
         }
@@ -159,8 +158,7 @@ static void _updateClass(struct dd_class_map_list_t *list)
         struct class_ro_t *metaRo = NULL;
         struct class_rw_t *metaRw = (struct class_rw_t *)(metaCls->data & FAST_DATA_MASK);
         if ((metaRw->flags & RW_REALIZED) > 0) {
-            metaRo = metaRw->ro;
-//            _objc_flush_caches((__bridge Class _Nullable)(metaCls));
+            assert("Unkown case! The class should not be realized");
         } else {
             metaRo = (struct class_ro_t *)metaRw;
         }

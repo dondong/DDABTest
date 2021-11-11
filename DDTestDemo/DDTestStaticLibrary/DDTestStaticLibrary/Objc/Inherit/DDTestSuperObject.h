@@ -23,8 +23,12 @@ NS_ASSUME_NONNULL_BEGIN
     NSValue  *_val;
 #endif
 }
+#if DemoTarget==1
 @property(nonatomic,strong) NSString *a;
 @property(nonatomic,strong) NSString *b;
+#else
+@property(nonatomic,assign) NSInteger c;
+#endif
 + (void)staticMethodTest;
 - (void)instanceMethodTest;
 @end

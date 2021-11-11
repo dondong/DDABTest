@@ -30,11 +30,11 @@ using namespace llvm;
 @end
 
 @implementation DDIRModule(Merge)
-+ (void)mergeLLFiles:(nonnull NSArray<NSString *> *)pathes withControlId:(UInt32)controlId toLLFile:(nonnull NSString *)outputPath
++ (void)mergeIRFiles:(nonnull NSArray<NSString *> *)pathes withControlId:(UInt32)controlId toIRFile:(nonnull NSString *)outputPath
 {
     NSMutableArray<DDIRModule *> *moduleList = [NSMutableArray array];
     for (NSString *p in pathes) {
-        DDIRModule *m = [DDIRModule moduleFromLLPath:p];
+        DDIRModule *m = [DDIRModule moduleFromPath:p];
         [moduleList addObject:m];
     }
     NSMutableDictionary *mergeConfiguration = [NSMutableDictionary dictionary];
@@ -67,11 +67,11 @@ using namespace llvm;
             }
         }
         for (DDIRObjCCategory *c in data.objcCategoryList) {
-            if (nil == [mergeCategoryList objectForKey:c.isa.className]) {
-                [mergeCategoryList setObject:@[[DDIRModuleMergeInfo infoWithTarget:c.categoryName index:i]].mutableCopy forKey:c.isa.className];
+            if (nil == [mergeCategoryList objectForKey:c.cls.className]) {
+                [mergeCategoryList setObject:@[[DDIRModuleMergeInfo infoWithTarget:c.categoryName index:i]].mutableCopy forKey:c.cls.className];
             } else {
-                [categoryChangeList addObject:@[c.isa.className, c.categoryName, appendStr]];
-                [[mergeCategoryList objectForKey:c.isa.className] addObject:[DDIRModuleMergeInfo infoWithTarget:appendStr index:i]];
+                [categoryChangeList addObject:@[c.cls.className, c.categoryName, appendStr]];
+                [[mergeCategoryList objectForKey:c.cls.className] addObject:[DDIRModuleMergeInfo infoWithTarget:appendStr index:i]];
             }
         }
         for (DDIRObjCProtocol *p in data.objcProtocolList) {
@@ -113,8 +113,8 @@ using namespace llvm;
         }];
     }
     
-    [DDIRModule linkLLFiles:pathes toLLFile:outputPath];
-    DDIRModule *module = [DDIRModule moduleFromLLPath:outputPath];
+    [DDIRModule linkIRFiles:pathes toIRFile:outputPath];
+    DDIRModule *module = [DDIRModule moduleFromPath:outputPath];
     
     [module executeChangesWithBlock:^(DDIRModule * _Nullable m) {
         // protocol
@@ -1649,7 +1649,7 @@ static GlobalVariable *_mergeObjcList(GlobalVariable *dst, int dIndex, GlobalVar
                                                          inModule:self.module];
         datas.push_back(ConstantExpr::getInBoundsGetElementPtr(attrName->getInitializer()->getType(), attrName, (Constant *[]){zero, zero}));
         // type
-        GlobalVariable *attrType = [DDIRUtil createObjcMethodName:"TQ,R" inModule:self.module];
+        GlobalVariable *attrType = [DDIRUtil createObjcMethodName:"Tq,N,Vc" inModule:self.module];
         datas.push_back(ConstantExpr::getInBoundsGetElementPtr(attrType->getInitializer()->getType(), attrType, (Constant *[]){zero, zero}));
         [configuration setObject:[NSValue valueWithPointer:ConstantStruct::get(methodType, datas)] forKey:key];
     }

@@ -7,6 +7,7 @@
 
 #import "DDABTestTool.h"
 #import "DDCommonDefine.h"
+#import "DDToolKitDefine.h"
 #import "DDStaticLibrary.h"
 #import "DDIRModule+Merge.h"
 #import <objc/runtime.h>
@@ -37,20 +38,24 @@
         i.lib.data = [i.lib.module getData];
     }
     assert(NULL != defaultInfo);
-    NSMutableArray *llfilePathes = [NSMutableArray array];
+    NSMutableArray *irfilePathes = [NSMutableArray array];
     UInt32 index = 0;
-    [llfilePathes addObject:defaultInfo.lib.module.path];
+    [irfilePathes addObject:defaultInfo.lib.module.path];
     defaultInfo.index = index;
     index++;
     for (DDStaticLibraryInfo *i in info.inputLibraries) {
         if (i != defaultInfo) {
-            [llfilePathes addObject:i.lib.module.path];
+            [irfilePathes addObject:i.lib.module.path];
             i.index = index;
             index++;
         }
     }
-    NSString *llfile = [info.tempDirectory stringByAppendingPathComponent:[info.moduleName stringByAppendingPathExtension:@"ll"]];
-    [DDIRModule mergeLLFiles:llfilePathes withControlId:info.moduleId toLLFile:llfile];
+#if EnableDebug
+    NSString *irfile = [info.tempDirectory stringByAppendingPathComponent:[info.moduleName stringByAppendingPathExtension:@"ll"]];
+#else
+    NSString *irfile = [info.tempDirectory stringByAppendingPathComponent:[info.moduleName stringByAppendingPathExtension:@"bc"]];
+#endif
+    [DDIRModule mergeIRFiles:irfilePathes withControlId:info.moduleId toIRFile:irfile];
     
     NSString *archDir = [[info.outputPath stringByDeletingLastPathComponent] stringByAppendingPathComponent:[NSString stringWithFormat:@"tmp_%lu", random()]];
     [[NSFileManager defaultManager] removeItemAtPath:archDir error:NULL];
@@ -65,8 +70,14 @@
         [[NSFileManager defaultManager] removeItemAtPath:tmpDir error:NULL];
         [[NSFileManager defaultManager] createDirectoryAtPath:tmpDir withIntermediateDirectories:YES attributes:nil error:NULL];
         NSString *target = [self _targetForArch:arch];
-        NSString *name = [llfile lastPathComponent];
-        system([[NSString stringWithFormat:@"xcrun clang -O1 -target %@ -fembed-bitcode -c %@ -o %@", target, llfile, [tmpDir stringByAppendingPathComponent:[[name stringByDeletingPathExtension] stringByAppendingString:@".o"]]] cStringUsingEncoding:NSUTF8StringEncoding]);
+        NSString *name = [irfile lastPathComponent];
+        if ([[irfile lowercaseString] hasSuffix:@".ll"]) {
+            system([[NSString stringWithFormat:@"xcrun clang -O1 -target %@ -fembed-bitcode -c %@ -o %@", target, irfile, [tmpDir stringByAppendingPathComponent:[[name stringByDeletingPathExtension] stringByAppendingString:@".o"]]] cStringUsingEncoding:NSUTF8StringEncoding]);
+        } else {
+            NSString *file = [irfile stringByReplacingOccurrencesOfString:@".bc" withString:@".ll"];
+            system([[NSString stringWithFormat:@"/usr/local/bin/llvm-dis %@ %@", irfile, file] cStringUsingEncoding:NSUTF8StringEncoding]);
+            system([[NSString stringWithFormat:@"xcrun clang -O1 -target %@ -fembed-bitcode -c %@ -o %@", target, file, [tmpDir stringByAppendingPathComponent:[[name stringByDeletingPathExtension] stringByAppendingString:@".o"]]] cStringUsingEncoding:NSUTF8StringEncoding]);
+        }
         if (architectures.count > 1) {
             NSString *name = [[info.outputPath lastPathComponent] stringByDeletingPathExtension];
             NSString *output = [NSString stringWithFormat:@"%@_%@.a", [archDir stringByAppendingPathComponent:name], arch];

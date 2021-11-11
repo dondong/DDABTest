@@ -35,7 +35,7 @@ typedef NS_ENUM(NSInteger, DDIRObjCClassType) {
 @property(nonatomic,strong,nonnull) NSString *className;
 @property(nonatomic,assign) DDIRObjCClassType type;
 // Define
-@property(nonatomic,strong,nullable) DDIRObjCClass *isa;
+@property(nonatomic,strong,nullable) DDIRObjCClass *isaObjCClass;
 @property(nonatomic,strong,nullable) DDIRObjCClass *superObjCClass;
 @property(nonatomic,strong,nullable) NSArray<DDIRObjCMethod *> *methodList;
 @property(nonatomic,strong,nullable) NSArray<DDIRObjCProtocol *> *protocolList;
@@ -43,7 +43,7 @@ typedef NS_ENUM(NSInteger, DDIRObjCClassType) {
 
 @interface DDIRObjCCategory : DDIRGlobalVariable
 @property(nonatomic,strong,nonnull) NSString *categoryName;
-@property(nonatomic,strong,nonnull) DDIRObjCClass *isa;
+@property(nonatomic,strong,nonnull) DDIRObjCClass *cls;
 @property(nonatomic,strong,nullable) NSArray<DDIRObjCMethod *> *instanceMethodList;
 @property(nonatomic,strong,nullable) NSArray<DDIRObjCMethod *> *classMethodList;
 @end

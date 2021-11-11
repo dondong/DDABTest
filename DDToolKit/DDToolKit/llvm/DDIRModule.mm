@@ -37,6 +37,40 @@ using namespace llvm;
 @end
 
 @implementation DDIRModule
++ (nullable instancetype)moduleFromPath:(nonnull NSString *)path
+{
+    if ([[path lowercaseString] hasSuffix:@".bc"]) {
+        return [self moduleFromBCPath:path];
+    } else if ([[path lowercaseString] hasSuffix:@".ll"]) {
+        return [self moduleFromLLPath:path];
+    }
+    return nil;
+}
+
++ (nullable instancetype)moduleFromBCPath:(nonnull NSString *)path
+{
+    static ExitOnError exitOnErr;
+    std::unique_ptr<MemoryBuffer> memoryBuffer = exitOnErr(errorOrToExpected(MemoryBuffer::getFileOrSTDIN([path cStringUsingEncoding:NSUTF8StringEncoding])));
+    BitcodeFileContents fileContents = exitOnErr(llvm::getBitcodeFileContents(*memoryBuffer));
+    const size_t size = fileContents.Mods.size();
+    if (1 != size) {
+        memoryBuffer.release();
+        return nil;
+    }
+    LLVMContext context;
+    BitcodeModule bitcodeModule = fileContents.Mods[0];
+    std::unique_ptr<Module> m = exitOnErr(bitcodeModule.getLazyModule(context, false, false));
+    if (nullptr == m) {
+        return nil;
+    }
+    memoryBuffer.release();
+    m.release();
+    
+    DDIRModule *module = [[DDIRModule alloc] init];
+    module.path = path;
+    return module;
+}
+
 + (nullable instancetype)moduleFromLLPath:(nonnull NSString *)path
 {
     LLVMContext context;
@@ -51,7 +85,8 @@ using namespace llvm;
     module.path = path;
     return module;
 }
-+ (void)linkLLFiles:(nonnull NSArray<NSString *> *)pathes toLLFile:(nonnull NSString *)outputPath
+
++ (void)linkIRFiles:(nonnull NSArray<NSString *> *)pathes toIRFile:(nonnull NSString *)outputPath
 {
     if (pathes.count <= 0) {
         return;
@@ -67,8 +102,21 @@ using namespace llvm;
         BOOL hasNoLazyCat = false;
         NSMutableDictionary *protocolDic = [NSMutableDictionary dictionary];
         for (int i = 0; i < pathes.count; ++i) {
-            SMDiagnostic err;
-            std::unique_ptr<Module> ptr = parseAssemblyFile([pathes[i] cStringUsingEncoding:NSUTF8StringEncoding], err, context);
+            std::unique_ptr<Module> ptr = nullptr;
+            if ([[pathes[i] lowercaseString] hasSuffix:@".bc"]) {
+                static ExitOnError exitOnErr;
+                std::unique_ptr<MemoryBuffer> memoryBuffer = exitOnErr(errorOrToExpected(MemoryBuffer::getFileOrSTDIN([pathes[i] cStringUsingEncoding:NSUTF8StringEncoding])));
+                BitcodeFileContents fileContents = exitOnErr(llvm::getBitcodeFileContents(*memoryBuffer));
+                assert(1 == fileContents.Mods.size());
+                BitcodeModule bitcodeModule = fileContents.Mods[0];
+                ptr = exitOnErr(bitcodeModule.parseModule(context));
+                memoryBuffer.release();
+            } else if ([[pathes[i] lowercaseString] hasSuffix:@".ll"]) {
+                SMDiagnostic err;
+                ptr = parseAssemblyFile([pathes[i] cStringUsingEncoding:NSUTF8StringEncoding], err, context);
+            } else {
+                assert("Unknown input file type");
+            }
             if (nullptr != ptr) {
                 NSMutableArray *removeArray = [NSMutableArray array];
                 Module::GlobalListType &globallist = ptr->getGlobalList();
@@ -132,6 +180,7 @@ using namespace llvm;
                     [DDIRUtil removeGlobalValue:(GlobalVariable *)val.pointerValue inModule:ptr.get()];
                 }
                 linker.linkInModule(std::move(ptr), Linker::Flags::None);
+                ptr.release();
             }
         }
         Module::GlobalListType &globallist = basePtr->getGlobalList();
@@ -148,7 +197,13 @@ using namespace llvm;
         StringRef output([outputPath cStringUsingEncoding:NSUTF8StringEncoding]);
         std::error_code ec;
         raw_fd_stream stream(output, ec);
-        basePtr->print(stream, nullptr);
+        if ([[outputPath lowercaseString] hasSuffix:@".bc"]) {
+            WriteBitcodeToFile(*basePtr, stream);
+        } else if ([[outputPath lowercaseString] hasSuffix:@".ll"]) {
+            basePtr->print(stream, nullptr);
+        } else {
+            assert("Unknown output file type");
+        }
         stream.close();
         basePtr.release();
     }
@@ -157,8 +212,21 @@ using namespace llvm;
 - (nullable DDIRModuleData *)getData
 {
     LLVMContext context;
-    SMDiagnostic err;
-    std::unique_ptr<Module> ptr = parseAssemblyFile([self.path cStringUsingEncoding:NSUTF8StringEncoding], err, context);
+    std::unique_ptr<Module> ptr = nullptr;
+    if ([[self.path lowercaseString] hasSuffix:@".bc"]) {
+        static ExitOnError exitOnErr;
+        std::unique_ptr<MemoryBuffer> memoryBuffer = exitOnErr(errorOrToExpected(MemoryBuffer::getFileOrSTDIN([self.path cStringUsingEncoding:NSUTF8StringEncoding])));
+        BitcodeFileContents fileContents = exitOnErr(llvm::getBitcodeFileContents(*memoryBuffer));
+        assert(1 == fileContents.Mods.size());
+        BitcodeModule bitcodeModule = fileContents.Mods[0];
+        ptr = exitOnErr(bitcodeModule.parseModule(context));
+        memoryBuffer.release();
+    } else if ([[self.path lowercaseString] hasSuffix:@".ll"]) {
+        SMDiagnostic err;
+        ptr = parseAssemblyFile([self.path cStringUsingEncoding:NSUTF8StringEncoding], err, context);
+    } else {
+        assert("Unknown file type");
+    }
     if (nullptr == ptr) {
         return nil;
     }
@@ -192,7 +260,7 @@ using namespace llvm;
                     for (DDIRObjCMethod *method in objcClass.methodList) {
                         [objcFuncDic setObject:@(YES) forKey:method.functionName];
                     }
-                    for (DDIRObjCMethod *method in objcClass.isa.methodList) {
+                    for (DDIRObjCMethod *method in objcClass.isaObjCClass.methodList) {
                         [objcFuncDic setObject:@(YES) forKey:method.functionName];
                     }
                 }
@@ -257,8 +325,21 @@ using namespace llvm;
 - (void)executeChangesWithSavePath:(nonnull NSString *)savePath block:(void (^_Nullable)(DDIRModule * _Nullable module))block
 {
     LLVMContext context;
-    SMDiagnostic err;
-    std::unique_ptr<Module> ptr = parseAssemblyFile([self.path cStringUsingEncoding:NSUTF8StringEncoding], err, context);
+    std::unique_ptr<Module> ptr = nullptr;
+    if ([[self.path lowercaseString] hasSuffix:@".bc"]) {
+        static ExitOnError exitOnErr;
+        std::unique_ptr<MemoryBuffer> memoryBuffer = exitOnErr(errorOrToExpected(MemoryBuffer::getFileOrSTDIN([self.path cStringUsingEncoding:NSUTF8StringEncoding])));
+        BitcodeFileContents fileContents = exitOnErr(llvm::getBitcodeFileContents(*memoryBuffer));
+        assert(1 == fileContents.Mods.size());
+        BitcodeModule bitcodeModule = fileContents.Mods[0];
+        ptr = exitOnErr(bitcodeModule.parseModule(context));
+        memoryBuffer.release();
+    } else if ([[self.path lowercaseString] hasSuffix:@".ll"]) {
+        SMDiagnostic err;
+        ptr = parseAssemblyFile([self.path cStringUsingEncoding:NSUTF8StringEncoding], err, context);
+    } else {
+        assert("Unknown file type");
+    }
     self.module = ptr.get();
     if (nil != block) {
         block(self);
@@ -267,7 +348,13 @@ using namespace llvm;
     StringRef output([savePath cStringUsingEncoding:NSUTF8StringEncoding]);
     std::error_code ec;
     raw_fd_stream stream(output, ec);
-    ptr->print(stream, nullptr);
+    if ([[savePath lowercaseString] hasSuffix:@".bc"]) {
+        WriteBitcodeToFile(*ptr, stream);
+    } else if ([[savePath lowercaseString] hasSuffix:@".ll"]) {
+        ptr->print(stream, nullptr);
+    } else {
+        assert("Unknown output file type");
+    }
     stream.close();
     ptr.release();
 }
@@ -762,7 +849,7 @@ static DDIRObjCClass *_objCClassFromVariable(GlobalVariable *variable, NSMutable
             ConstantStruct *structPtr = dyn_cast<ConstantStruct>(variable->getInitializer());
             assert(nullptr != structPtr && 5 == structPtr->getNumOperands());
             objcClass.type = DDIRObjCClassType_Define;
-            objcClass.isa = _objCClassFromVariable(dyn_cast<GlobalVariable>(structPtr->getOperand(0)), globalDic);
+            objcClass.isaObjCClass = _objCClassFromVariable(dyn_cast<GlobalVariable>(structPtr->getOperand(0)), globalDic);
             objcClass.superObjCClass = _objCClassFromVariable(dyn_cast<GlobalVariable>(structPtr->getOperand(1)), globalDic);
             GlobalVariable *ro = dyn_cast<GlobalVariable>(structPtr->getOperand(4));
             // name
@@ -816,7 +903,7 @@ static DDIRObjCCategory *_objCCategoryFromVariable(GlobalVariable *variable, NSM
             objcCategory.categoryName = [DDIRUtil stringFromGlobalVariable:getValue(variable, 0)];
         }
         if (nullptr != variable->getInitializer()->getOperand(1)) {
-            objcCategory.isa = _objCClassFromVariable(dyn_cast<GlobalVariable>(variable->getInitializer()->getOperand(1)), globalDic);
+            objcCategory.cls = _objCClassFromVariable(dyn_cast<GlobalVariable>(variable->getInitializer()->getOperand(1)), globalDic);
         }
         // instanceMethods
         if (isNullValue(variable, 2)) {

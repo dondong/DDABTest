@@ -6,6 +6,7 @@
 //
 
 #import "DDStaticLibrary.h"
+#import "DDToolKitDefine.h"
 #import "DDIRModule+Merge.h"
 
 @interface DDStaticLibrary()
@@ -56,22 +57,32 @@
         system([[NSString stringWithFormat:@"tar -xf %@ -C %@", path, library.tmpPath] cStringUsingEncoding:NSUTF8StringEncoding]);
     }
     
-    NSMutableArray *llPathList = [NSMutableArray array];
+    NSMutableArray *pathList = [NSMutableArray array];
     for (NSString *p in [[NSFileManager defaultManager] subpathsAtPath:library.tmpPath]) {
         if ([[[p pathExtension] lowercaseString] isEqualToString:@"o"]) {
             NSString *ofilePath = [library.tmpPath stringByAppendingPathComponent:p];
             NSString *bcPath = [[ofilePath stringByDeletingPathExtension] stringByAppendingPathExtension:@"bc"];
+#if EnableDebug
             NSString *llPath = [[ofilePath stringByDeletingPathExtension] stringByAppendingPathExtension:@"ll"];
             system([[NSString stringWithFormat:@"segedit %@ -extract __LLVM __bitcode %@", ofilePath, bcPath] cStringUsingEncoding:NSUTF8StringEncoding]);
             system([[NSString stringWithFormat:@"/usr/local/bin/llvm-dis %@ %@", bcPath, llPath] cStringUsingEncoding:NSUTF8StringEncoding]);
-            [llPathList addObject:llPath];
+            [pathList addObject:llPath];
             [[NSFileManager defaultManager] removeItemAtPath:ofilePath error:NULL];
             [[NSFileManager defaultManager] removeItemAtPath:bcPath error:NULL];
+#else
+            system([[NSString stringWithFormat:@"segedit %@ -extract __LLVM __bitcode %@", ofilePath, bcPath] cStringUsingEncoding:NSUTF8StringEncoding]);
+            [pathList addObject:bcPath];
+            [[NSFileManager defaultManager] removeItemAtPath:ofilePath error:NULL];
+#endif
         }
     }
-    NSString *llPath = [library.tmpPath stringByAppendingPathComponent:[[library.path.lastPathComponent stringByDeletingPathExtension] stringByAppendingPathExtension:@"ll"]];
-    [DDIRModule linkLLFiles:llPathList toLLFile:llPath];
-    library.module = [DDIRModule moduleFromLLPath:llPath];
+#if EnableDebug
+    NSString *irPath = [library.tmpPath stringByAppendingPathComponent:[[library.path.lastPathComponent stringByDeletingPathExtension] stringByAppendingPathExtension:@"ll"]];
+#else
+    NSString *irPath = [library.tmpPath stringByAppendingPathComponent:[[library.path.lastPathComponent stringByDeletingPathExtension] stringByAppendingPathExtension:@"bc"]];
+#endif
+    [DDIRModule linkIRFiles:pathList toIRFile:irPath];
+    library.module = [DDIRModule moduleFromPath:irPath];
     return library;
 }
 
