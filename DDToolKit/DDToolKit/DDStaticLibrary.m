@@ -6,15 +6,9 @@
 //
 
 #import "DDStaticLibrary.h"
+#import "DDStaticLibrary+Private.h"
 #import "DDToolKitDefine.h"
 #import "DDIRModule+Merge.h"
-
-@interface DDStaticLibrary()
-@property(nonatomic,strong,readwrite,nonnull) NSString *path;
-@property(nonatomic,strong,readwrite,nonnull) NSString *tmpPath;
-@property(nonatomic,strong,readwrite,nonnull) NSArray<NSString *> *architectures;
-@property(nonatomic,strong,readwrite,nonnull) DDIRModule *module;
-@end
 
 @implementation DDStaticLibrary
 + (nullable instancetype)libraryFromPath:(nonnull NSString *)path tempDir:(nonnull NSString *)tempDir
@@ -76,13 +70,7 @@
 #endif
         }
     }
-#if EnableDebug
-    NSString *irPath = [library.tmpPath stringByAppendingPathComponent:[[library.path.lastPathComponent stringByDeletingPathExtension] stringByAppendingPathExtension:@"ll"]];
-#else
-    NSString *irPath = [library.tmpPath stringByAppendingPathComponent:[[library.path.lastPathComponent stringByDeletingPathExtension] stringByAppendingPathExtension:@"bc"]];
-#endif
-    [DDIRModule linkIRFiles:pathList toIRFile:irPath];
-    library.module = [DDIRModule moduleFromPath:irPath];
+    library.pathList = [NSMutableArray arrayWithArray:pathList];
     return library;
 }
 

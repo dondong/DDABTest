@@ -11,6 +11,8 @@
 + (void)categoryStaticTest_A
 {
     DDLog(@"+[NSObject(A) categoryStaticTest_A]");
+//    int a = 1;
+//    DDLog(@"%@", a);
 }
 
 - (void)categoryInstanceTest_A

@@ -16,9 +16,13 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 @interface DDIRModule(Merge)
-+ (void)mergeIRFiles:(nonnull NSArray<NSString *> *)pathes withControlId:(UInt32)controlId toIRFile:(nonnull NSString *)outputPath;
+typedef NSDictionary<NSString *, DDIRReplaceResult *> DDIRChangeRecord;
++ (nonnull DDIRChangeRecord *)mergeIRFiles:(nonnull NSArray<NSString *> *)pathes withControlId:(UInt32)controlId toIRFile:(nonnull NSString *)outputPath;
++ (void)extractObjcDataAndFunctionDeclarationFromIRFiles:(nonnull NSArray<NSString *> *)pathes toIRFile:(nonnull NSString *)outputPath;
 // change
+- (void)remeveObjcData;
 - (void)mergeObjcData;
+- (void)synchronzieReplaceResult:(nonnull DDIRReplaceResult *)result;
 @end
 
 NS_ASSUME_NONNULL_END

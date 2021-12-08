@@ -83,6 +83,29 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
     return nullptr;
 }
 
++ (bool)onlyUsedByLLVM:(llvm::GlobalValue * _Nonnull)var
+{
+    if (var->getNumUses() == 1) {
+        if (auto e = dyn_cast<ConstantExpr>(var->user_back())) {
+            e->removeDeadConstantUsers();
+            if (e->getNumUses() == 1) {
+                if (auto c = dyn_cast<Constant>(e->user_back())) {
+                    c->removeDeadConstantUsers();
+                    if (c->getNumUses() == 1) {
+                        if (auto *u = dyn_cast<GlobalVariable>(c->user_back())) {
+                            if (0 == strcmp(u->getName().data(), "llvm.compiler.used") ||
+                                0 == strcmp(u->getName().data(), "llvm.used")) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
 #pragma mark create
 + (llvm::GlobalVariable * _Nonnull)createGlobalVariableName:(const char * _Nonnull)name
                                          fromGlobalVariable:(llvm::GlobalVariable * _Nonnull)other
@@ -105,10 +128,19 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
 
 + (void)removeGlobalValue:(llvm::GlobalValue * _Nonnull)var inModule:(llvm::Module * _Nonnull)module
 {
+    [self removeGlobalValue:var ignoreFunction:false inModule:module];
+}
+
++ (void)removeGlobalValue:(llvm::GlobalValue * _Nonnull)var ignoreFunction:(bool)ignoreFunction inModule:(llvm::Module * _Nonnull)module
+{
+    [self _removeGlobalValue:var ignoreFunction:ignoreFunction inModule:module tempRetainCount:[NSMutableDictionary dictionary]];
+}
++ (void)_removeGlobalValue:(llvm::GlobalValue * _Nonnull)var ignoreFunction:(bool)ignoreFunction inModule:(llvm::Module * _Nonnull)module tempRetainCount:(nonnull NSMutableDictionary *)tempRetainCount
+{
     std::vector<GlobalValue *> list;
     if (auto variable = dyn_cast<GlobalVariable>(var)) {
         if (variable->hasInitializer() && nullptr != variable->getInitializer()) {
-            [self _setGlobalVariableInConstant:variable->getInitializer() toList:list];
+            [self _setGlobalVariableInConstant:variable->getInitializer() ignoreFunction:ignoreFunction toList:list];
         }
     } else if (auto fun = dyn_cast<Function>(var)) {
         
@@ -143,31 +175,27 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
     }
     var->eraseFromParent();
     for (GlobalValue *g : list) {
-        g->removeDeadConstantUsers();
-        if (g->use_empty()) {
-            [self removeGlobalValue:g inModule:module];
-        } else if (g->getNumUses() == 1) {
-            if (auto e = dyn_cast<ConstantExpr>(g->user_back())) {
-                e->removeDeadConstantUsers();
-                if (e->getNumUses() == 1) {
-                    if (auto c = dyn_cast<Constant>(e->user_back())) {
-                        c->removeDeadConstantUsers();
-                        if (c->getNumUses() == 1) {
-                            if (auto *u = dyn_cast<GlobalVariable>(c->user_back())) {
-                                if (0 == strcmp(u->getName().data(), "llvm.compiler.used") ||
-                                    0 == strcmp(u->getName().data(), "llvm.used")) {
-                                    [self removeGlobalValue:g inModule:module];
-                                }
-                            }
-                        }
-                    }
-                }
+        NSValue *key = [NSValue valueWithPointer:g];
+        [tempRetainCount setObject:@([[tempRetainCount objectForKey:key] integerValue] + 1) forKey:key];
+    }
+    for (GlobalValue *g : list) {
+        NSValue *key = [NSValue valueWithPointer:g];
+        NSInteger value = [[tempRetainCount objectForKey:key] integerValue];
+        if (1 == value) {
+            g->removeDeadConstantUsers();
+            if (g->use_empty()) {
+                [self _removeGlobalValue:g ignoreFunction:ignoreFunction inModule:module tempRetainCount:tempRetainCount];
+            } else if ([self onlyUsedByLLVM:g]) {
+                [self _removeGlobalValue:g ignoreFunction:ignoreFunction inModule:module tempRetainCount:tempRetainCount];
             }
+            [tempRetainCount removeObjectForKey:key];
+        } else {
+            [tempRetainCount setObject:@(value - 1) forKey:key];
         }
     }
 }
 
-+ (void)_setGlobalVariableInConstant:(Constant *)c toList:(std::vector<GlobalValue *> &)l
++ (void)_setGlobalVariableInConstant:(Constant *)c ignoreFunction:(bool)ignoreFunction toList:(std::vector<GlobalValue *> &)l
 {
     for (GlobalValue *g : l) {
         if (g == c) {
@@ -176,16 +204,18 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
     }
     if (auto a = dyn_cast<ConstantAggregate>(c)) {
         for (int i = 0; i < a->getNumOperands(); ++i) {
-            [self _setGlobalVariableInConstant:a->getOperand(i) toList:l];
+            [self _setGlobalVariableInConstant:a->getOperand(i) ignoreFunction:ignoreFunction toList:l];
         }
     } else if (auto e = dyn_cast<ConstantExpr>(c)) {
         if (e->getNumOperands() > 0) {
-            [self _setGlobalVariableInConstant:e->getOperand(0) toList:l];
+            [self _setGlobalVariableInConstant:e->getOperand(0) ignoreFunction:ignoreFunction toList:l];
         }
     } else if (auto g = dyn_cast<GlobalVariable>(c)) {
         l.push_back(g);
     } else if (auto f = dyn_cast<Function>(c)) {
-        l.push_back(f);
+        if (false == ignoreFunction) {
+            l.push_back(f);
+        }
     }
 }
 
@@ -221,6 +251,27 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
     }
 }
 
++ (void)replaceFuction:(llvm::Function * _Nonnull)fun1
+                  with:(llvm::Function * _Nonnull)fun2
+{
+    if (fun1->hasValueHandle()) {
+        ValueHandleBase::ValueIsRAUWd(fun1, fun2);
+    }
+    if (fun1->isUsedByMetadata())
+      ValueAsMetadata::handleRAUW(fun1, fun2);
+
+    while (!fun1->materialized_use_empty()) {
+      Use &u = *fun1->materialized_use_begin();
+      if (auto *c = dyn_cast<Constant>(u.getUser())) {
+        if (!isa<GlobalValue>(c)) {
+          c->handleOperandChange(fun1, fun2);
+          continue;
+        }
+      }
+      u.set(fun2);
+    }
+}
+
 + (nonnull NSString *)changeGlobalValueName:(llvm::GlobalValue * _Nonnull)variable
                                        from:(nonnull NSString *)oldName
                                          to:(nonnull NSString *)newName
@@ -234,6 +285,8 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
         n = [o stringByReplacingOccurrencesOfString:[NSString stringWithFormat:@"$_%@.", oldName] withString:[NSString stringWithFormat:@"$_%@.", newName]];
     } else if ([o containsString:[NSString stringWithFormat:@"[%@ ", oldName]]) {   // xx[oldName xx
         n = [o stringByReplacingOccurrencesOfString:[NSString stringWithFormat:@"[%@ ", oldName] withString:[NSString stringWithFormat:@"[%@ ", newName]];
+    } else if ([o containsString:[NSString stringWithFormat:@"[%@(", oldName]]) {   // xx[oldName xx
+        n = [o stringByReplacingOccurrencesOfString:[NSString stringWithFormat:@"[%@(", oldName] withString:[NSString stringWithFormat:@"[%@(", newName]];
     } else if ([o containsString:[NSString stringWithFormat:@"(%@) ", oldName]]) {   // xx(oldName) xx
         n = [o stringByReplacingOccurrencesOfString:[NSString stringWithFormat:@"(%@) ", oldName] withString:[NSString stringWithFormat:@"(%@) ", newName]];
     }
@@ -358,8 +411,8 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
 {
     Constant *arr = dyn_cast<Constant>(variable->getInitializer());
     if (0 <= index && index < arr->getNumOperands()) {
-        StringRef oldName(variable->getName().data());
-        variable->setName(Twine([[NSString stringWithFormat:@"%s..", oldName.data()] cStringUsingEncoding:NSUTF8StringEncoding]));
+        NSString *oldName = [NSString stringWithFormat:@"%s", variable->getName().data()];
+        variable->setName(Twine([[NSString stringWithFormat:@"%@..", oldName] cStringUsingEncoding:NSUTF8StringEncoding]));
         std::vector<Constant *> list;
         for (int i = 0; i < arr->getNumOperands(); ++i) {
             if (i != index) {
@@ -367,7 +420,7 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
             }
         }
         Constant *val = ConstantArray::get(ArrayType::get(Type::getInt8PtrTy(module->getContext()), arr->getNumOperands() - 1), list);
-        GlobalVariable *newVariable = new GlobalVariable(*module, val->getType(), variable->isConstant(), variable->getLinkage(), val, oldName, variable, variable->getThreadLocalMode(), variable->getAddressSpace(), variable->isExternallyInitialized());
+        GlobalVariable *newVariable = new GlobalVariable(*module, val->getType(), variable->isConstant(), variable->getLinkage(), val, [oldName cStringUsingEncoding:NSUTF8StringEncoding], variable, variable->getThreadLocalMode(), variable->getAddressSpace(), variable->isExternallyInitialized());
         newVariable->setAlignment(variable->getAlign());
         newVariable->setUnnamedAddr(variable->getUnnamedAddr());
         if (variable->hasSection()) {
@@ -402,6 +455,15 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
                                    defaultName:(const char * _Nonnull)name
                                       inModule:(llvm::Module * _Nonnull)module
 {
+    return [self insertValue:value toGlobalArrayWithSection:sectionName defaultName:name at:0 inModule:module];
+}
+
++ (llvm::GlobalVariable * _Nonnull)insertValue:(llvm::Constant * _Nonnull)value
+                      toGlobalArrayWithSection:(const char * _Nonnull)sectionName
+                                   defaultName:(const char * _Nonnull)name
+                                            at:(NSUInteger)index
+                                      inModule:(llvm::Module * _Nonnull)module
+{
     GlobalVariable *label = [self getGlabalArrayWithSection:sectionName inModule:module];
     if (nullptr == label) {
         std::vector<Constant *> list;
@@ -421,7 +483,7 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
     }
     return [self insertValue:value
                toGlobalArray:label
-                          at:0
+                          at:index
                     inModule:module];
 }
 

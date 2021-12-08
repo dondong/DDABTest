@@ -7,6 +7,46 @@
 
 #import "DDTestLoad.h"
 
+@interface DDTestLoad(Load1)
+@end
+
+@implementation DDTestLoad(Load1)
++ (void)load
+{
+    DDLog(@"+[DDTestLoad(Load1) load]");
+    DDTestLoad *l = [[DDTestLoad alloc] init];
+    [l instanceTest1];
+}
++ (void)classTest1
+{
+    DDLog(@"+[DDTestLoad classTest1]");
+}
+- (void)instanceTest1
+{
+    DDLog(@"-[DDTestLoad instanceTest1]");
+}
+@end
+
+@interface DDTestLoad(Load2)
+@end
+
+@implementation DDTestLoad(Load2)
++ (void)load
+{
+    DDLog(@"+[DDTestLoad(Load2) load]");
+    DDTestLoad *l = [[DDTestLoad alloc] init];
+    [l instanceTest2];
+}
++ (void)classTest2
+{
+    DDLog(@"+[DDTestLoad classTest2]");
+}
+- (void)instanceTest2
+{
+    DDLog(@"-[DDTestLoad instanceTest2]");
+}
+@end
+
 @implementation DDTestLoad
 + (void)classTest
 {
@@ -21,6 +61,8 @@
 + (void)load
 {
     DDLog(@"+[DDTestLoad load]");
+    [self classTest1];
+    [self classTest2];
 #if DemoTarget==1
 #else
     [self classTest];

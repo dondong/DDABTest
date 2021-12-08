@@ -10,6 +10,7 @@
 #import "DDStaticLibrary.h"
 #import "DDIRModule.h"
 #import "DDIRModule+Merge.h"
+#import "DDToolKitDefine.h"
 
 int main(int argc, const char * argv[]) {
     @autoreleasepool {
@@ -34,7 +35,7 @@ int main(int argc, const char * argv[]) {
                     [libraries addObject:lib];
                 }
             }
-            if (libraries.count >= 2 && nil != info.moduleName && info.moduleId > 0 && nil != info.outputPath) {
+            if (libraries.count >= 1 && nil != info.moduleName && info.moduleId > 0 && nil != info.outputPath) {
                 if (nil == info.tempDirectory) {
                     info.tempDirectory = [[info.outputPath stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"tmp"];
                 }
@@ -42,17 +43,15 @@ int main(int argc, const char * argv[]) {
                     info.configPath = [[info.outputPath stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"DDABTestConfiguration.plist"];
                 }
 
-                BOOL createTmp = false;
                 if (NO == [[NSFileManager defaultManager] fileExistsAtPath:info.tempDirectory]) {
-                    createTmp = true;
                     [[NSFileManager defaultManager] createDirectoryAtPath:info.tempDirectory withIntermediateDirectories:YES attributes:nil error:NULL];
                 }
                 [libraries[0] setIsDefault:true];
                 info.inputLibraries = libraries;
                 [DDABTestTool mergeStaticLibrariesWithInfo:info];
-                if (createTmp) {
-                    [[NSFileManager defaultManager] removeItemAtPath:info.tempDirectory error:NULL];
-                }
+#if CleanTempFiles
+                [[NSFileManager defaultManager] removeItemAtPath:info.tempDirectory error:NULL];
+#endif
             }
         }
     }

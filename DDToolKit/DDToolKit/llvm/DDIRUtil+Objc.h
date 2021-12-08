@@ -47,6 +47,15 @@ extern const char *IR_Objc_CategoryTypeName;
                                              propList:(std::vector<llvm::Constant *>)props
                                         classPropList:(std::vector<llvm::Constant *>)classProps
                                              inModule:(llvm::Module * _Nonnull)module;
++ (llvm::GlobalVariable * _Nonnull)createObjcCategory:(const char * _Nonnull)categoryName
+                                                  cls:(llvm::GlobalVariable * _Nonnull)cls
+                                       withMethodList:(std::vector<llvm::Constant *>)methods
+                                      classMethodList:(std::vector<llvm::Constant *>)classMethods
+                                         protocolList:(std::vector<llvm::Constant *>)protocols
+                                             propList:(std::vector<llvm::Constant *>)props
+                                        classPropList:(std::vector<llvm::Constant *>)classProps
+                                         labelAtIndex:(NSUInteger)index
+                                             inModule:(llvm::Module * _Nonnull)module;
 + (llvm::GlobalVariable * _Nonnull)createObjcProtocol:(const char * _Nonnull)protocolName
                                             withFlags:(uint32_t)flags
                                          protocolList:(std::vector<llvm::Constant *>)protocols
@@ -69,6 +78,12 @@ extern const char *IR_Objc_CategoryTypeName;
                                             inModule:(llvm::Module * _Nonnull)module;
 + (llvm::GlobalVariable * _Nonnull)createObjcClassName:(const char *)name
                                               inModule:(llvm::Module * _Nonnull)module;
+// get or create
++ (llvm::GlobalVariable * _Nonnull)getAndCreateClassReference:(llvm::GlobalVariable * _Nonnull)cls
+                                                     inModule:(llvm::Module * _Nonnull)module;
++ (llvm::GlobalVariable * _Nonnull)getAndCreateSelectorReference:(const char * _Nonnull)selector
+                                                         inClass:(llvm::GlobalVariable * _Nonnull)cls
+                                                        inModule:(llvm::Module * _Nonnull)module;
 // get
 + (nullable NSString *)getObjcClassName:(llvm::GlobalVariable * _Nonnull)cls;
 + (nullable NSString *)getObjcCategoryName:(llvm::GlobalVariable * _Nonnull)cat;

@@ -194,6 +194,37 @@ using namespace llvm;
                 }
             }
         }
+        // remove duplicates of llvm.linker.options
+        NamedMDNode *optionNode = basePtr->getNamedMetadata("llvm.linker.options");
+        if (nullptr != optionNode) {
+            NSMutableDictionary *optionDic = [NSMutableDictionary dictionary];
+            for (int i = 0; i < optionNode->getNumOperands(); ++i) {
+                NSValue *val = [NSValue valueWithPointer:optionNode->getOperand(i)];
+                if (nil == [optionDic objectForKey:val]) {
+                    [optionDic setObject:val forKey:val];
+                }
+            }
+            optionNode->clearOperands();
+            for (NSValue *key in optionDic.allKeys) {
+                optionNode->addOperand((MDNode *)[key pointerValue]);
+            }
+        }
+        // remove duplicates of llvm.ident
+        NamedMDNode *identNode = basePtr->getNamedMetadata("llvm.ident");
+        if (nullptr != identNode) {
+            NSMutableDictionary *identDic = [NSMutableDictionary dictionary];
+            for (int i = 0; i < identNode->getNumOperands(); ++i) {
+                NSValue *val = [NSValue valueWithPointer:identNode->getOperand(i)];
+                if (nil == [identDic objectForKey:val]) {
+                    [identDic setObject:val forKey:val];
+                }
+            }
+            identNode->clearOperands();
+            for (NSValue *key in identDic.allKeys) {
+                identNode->addOperand((MDNode *)[key pointerValue]);
+            }
+        }
+        
         StringRef output([outputPath cStringUsingEncoding:NSUTF8StringEncoding]);
         std::error_code ec;
         raw_fd_stream stream(output, ec);
@@ -307,9 +338,7 @@ using namespace llvm;
         if (nil == [objcFuncDic objectForKey:funName]) {
             DDIRFunction *function = [[DDIRFunction alloc] init];
             function.name = funName;
-            if (f.getBasicBlockList().size() > 0) {
-                [functionNameList addObject:function];
-            }
+            [functionNameList addObject:function];
         }
     }
     data.functionList = [NSArray arrayWithArray:functionNameList];
@@ -416,52 +445,63 @@ using namespace llvm;
     }
 }
 
-- (BOOL)replaceObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName
+- (nullable DDIRReplaceResult *)replaceObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName
 {
     GlobalVariable *classVariable = [DDIRUtil getObjcClass:className inModule:self.module];
     if (nullptr != classVariable && classVariable->hasInitializer()) {
+        NSMutableDictionary *result = [NSMutableDictionary dictionary];
         NSString *oldName = [[NSString stringWithCString:classVariable->getName().data() encoding:NSUTF8StringEncoding] stringByReplacingOccurrencesOfString:@"OBJC_CLASS_$_" withString:@""];
+        void (^changeName)(NSString *, GlobalValue *, NSString *, NSString *) = ^(NSString *key, GlobalValue *var, NSString *oldName, NSString *newName) {
+            NSMutableDictionary *dic = [result objectForKey:key];
+            if (nil == dic) {
+                dic = [NSMutableDictionary dictionary];
+                [result setObject:dic forKey:key];
+            }
+            NSString *k = [NSString stringWithFormat:@"%s", var->getName().data()];
+            [DDIRUtil changeGlobalValueName:var from:oldName to:newName];
+            [dic setObject:[NSString stringWithFormat:@"%s", var->getName().data()] forKey:k];
+        };
         void (^setNewClassName)(GlobalVariable *) = ^(GlobalVariable *variable) {
             assert(nullptr != variable);
-            [DDIRUtil changeGlobalValueName:variable from:oldName to:newName];
+            changeName(DDIRReplaceResultGlobalVariableKey, variable, oldName, newName);
             ConstantStruct *structPtr = dyn_cast<ConstantStruct>(variable->getInitializer());
             GlobalVariable *ro = dyn_cast<GlobalVariable>(structPtr->getOperand(4));
-            [DDIRUtil changeGlobalValueName:ro from:oldName to:newName];
+            changeName(DDIRReplaceResultGlobalVariableKey, ro, oldName, newName);
             // method
             if (isNullValue(ro, 5)) {
                 GlobalVariable *methods = getValue(ro, 5);
-                [DDIRUtil changeGlobalValueName:methods from:oldName to:newName];
+                changeName(DDIRReplaceResultGlobalVariableKey, methods, oldName, newName);
                 ConstantStruct *methodsPtr = dyn_cast<ConstantStruct>(methods->getInitializer());
                 uint64_t count = (dyn_cast<ConstantInt>(methodsPtr->getOperand(1)))->getZExtValue();
                 ConstantArray *list = dyn_cast<ConstantArray>(methodsPtr->getOperand(2));
                 for (int i = 0; i < count; ++i) {
                     ConstantStruct *str = dyn_cast<ConstantStruct>(list->getOperand(i));
                     GlobalVariable *m = dyn_cast<GlobalVariable>(dyn_cast<ConstantExpr>(str->getOperand(0))->getOperand(0));
-                    [DDIRUtil changeGlobalValueName:m from:oldName to:newName];
+                    changeName(DDIRReplaceResultGlobalVariableKey, m, oldName, newName);
                     Function *f = dyn_cast<Function>(dyn_cast<ConstantExpr>(str->getOperand(2))->getOperand(0));
-                    [DDIRUtil changeGlobalValueName:f from:oldName to:newName];
+                    changeName(DDIRReplaceResultFunctionKey, f, oldName, newName);
                 }
             }
             // protocol
             if (isNullValue(ro, 6)) {
-                [DDIRUtil changeGlobalValueName:getValue(ro, 6) from:oldName to:newName];
+                changeName(DDIRReplaceResultGlobalVariableKey, getValue(ro, 6), oldName, newName);
             }
             // ivar
             if (isNullValue(ro, 7)) {
                 GlobalVariable *ivars = getValue(ro, 7);
-                [DDIRUtil changeGlobalValueName:ivars from:oldName to:newName];
+                changeName(DDIRReplaceResultGlobalVariableKey, ivars, oldName, newName);
                 ConstantStruct *ivarsPtr = dyn_cast<ConstantStruct>(ivars->getInitializer());
                 uint64_t count = (dyn_cast<ConstantInt>(ivarsPtr->getOperand(1)))->getZExtValue();
                 ConstantArray *list = dyn_cast<ConstantArray>(ivarsPtr->getOperand(2));
                 for (int i = 0; i < count; ++i) {
                     ConstantStruct *str = dyn_cast<ConstantStruct>(list->getOperand(i));
                     GlobalVariable *v = dyn_cast<GlobalVariable>(str->getOperand(0));
-                    [DDIRUtil changeGlobalValueName:v from:oldName to:newName];
+                    changeName(DDIRReplaceResultGlobalVariableKey, v, oldName, newName);
                 }
             }
             // prop
             if (isNullValue(ro, 9)) {
-                [DDIRUtil changeGlobalValueName:(getValue(ro, 9)) from:oldName to:newName];
+                changeName(DDIRReplaceResultGlobalVariableKey, getValue(ro, 9), oldName, newName);
             }
         };
         const char *oldVariablesName = classVariable->getName().data();
@@ -495,9 +535,9 @@ using namespace llvm;
                 }
             }
         }
-        return true;
+        return result;
     }
-    return false;
+    return nil;
 }
 
 - (BOOL)moveClass:(nonnull NSString *)className to:(nonnull NSString *)section
@@ -601,46 +641,67 @@ using namespace llvm;
     }
 }
 
-- (BOOL)replaceCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName
+- (nullable DDIRReplaceResult *)replaceCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName
 {
     GlobalVariable *cat = [DDIRUtil getCategory:categoryName forObjcClass:className inModule:self.module];
     if (nullptr != cat) {
+        NSMutableDictionary *result = [NSMutableDictionary dictionary];
+        void (^changeName)(NSString *, GlobalValue *, NSString *, NSString *) = ^(NSString *key, GlobalValue *var, NSString *oldName, NSString *newName) {
+            NSMutableDictionary *dic = [result objectForKey:key];
+            if (nil == dic) {
+                dic = [NSMutableDictionary dictionary];
+                [result setObject:dic forKey:key];
+            }
+            NSString *k = [NSString stringWithFormat:@"%s", var->getName().data()];
+            NSString *n = [DDIRUtil changeGlobalValueName:var from:oldName to:newName];
+            if (false == [n isEqualToString:k]) {
+                [dic setObject:[NSString stringWithFormat:@"%s", var->getName().data()] forKey:k];
+            }
+        };
         NSString *oldName = [[[NSString stringWithCString:cat->getName().data() encoding:NSUTF8StringEncoding] componentsSeparatedByString:@"_$_"] lastObject];
-        [DDIRUtil changeGlobalValueName:cat from:oldName to:newName];
+        changeName(DDIRReplaceResultGlobalVariableKey, cat, oldName, newName);
         [DDIRUtil changeStringValue:dyn_cast<ConstantStruct>(cat->getInitializer()) atOperand:0 to:newName inModule:self.module];
         // instanceMethods
         if (isNullValue(cat, 2)) {
             GlobalVariable *methods = getValue(cat, 2);
-            [DDIRUtil changeGlobalValueName:methods from:oldName to:newName];
+            changeName(DDIRReplaceResultGlobalVariableKey, methods, oldName, newName);
             ConstantStruct *methodsPtr = dyn_cast<ConstantStruct>(methods->getInitializer());
             uint64_t count = (dyn_cast<ConstantInt>(methodsPtr->getOperand(1)))->getZExtValue();
             ConstantArray *list = dyn_cast<ConstantArray>(methodsPtr->getOperand(2));
             for (int i = 0; i < count; ++i) {
                 ConstantStruct *str = dyn_cast<ConstantStruct>(list->getOperand(i));
                 GlobalVariable *m = dyn_cast<GlobalVariable>(dyn_cast<ConstantExpr>(str->getOperand(0))->getOperand(0));
-                [DDIRUtil changeGlobalValueName:m from:oldName to:newName];
                 Function *f = dyn_cast<Function>(dyn_cast<ConstantExpr>(str->getOperand(2))->getOperand(0));
-                [DDIRUtil changeGlobalValueName:f from:oldName to:newName];
+                NSString *n = [NSString stringWithFormat:@"%s", f->getName().data()];
+                NSRegularExpression *r = [NSRegularExpression regularExpressionWithPattern:@"\\(\\w+\\) " options:NSRegularExpressionCaseInsensitive error:NULL];
+                n = [n substringWithRange:[r rangeOfFirstMatchInString:n options:0 range:NSMakeRange(0, n.length)]];
+                n = [n substringWithRange:NSMakeRange(1, n.length - 3)];
+                changeName(DDIRReplaceResultGlobalVariableKey, m, n, newName);
+                changeName(DDIRReplaceResultFunctionKey, f, n, newName);
             }
         }
         // classMethods
         if (isNullValue(cat, 3)) {
             GlobalVariable *methods = getValue(cat, 3);
-            [DDIRUtil changeGlobalValueName:methods from:oldName to:newName];
+            changeName(DDIRReplaceResultGlobalVariableKey, methods, oldName, newName);
             ConstantStruct *methodsPtr = dyn_cast<ConstantStruct>(methods->getInitializer());
             uint64_t count = (dyn_cast<ConstantInt>(methodsPtr->getOperand(1)))->getZExtValue();
             ConstantArray *list = dyn_cast<ConstantArray>(methodsPtr->getOperand(2));
             for (int i = 0; i < count; ++i) {
                 ConstantStruct *str = dyn_cast<ConstantStruct>(list->getOperand(i));
                 GlobalVariable *m = dyn_cast<GlobalVariable>(dyn_cast<ConstantExpr>(str->getOperand(0))->getOperand(0));
-                [DDIRUtil changeGlobalValueName:m from:oldName to:newName];
                 Function *f = dyn_cast<Function>(dyn_cast<ConstantExpr>(str->getOperand(2))->getOperand(0));
-                [DDIRUtil changeGlobalValueName:f from:oldName to:newName];
+                NSString *n = [NSString stringWithFormat:@"%s", f->getName().data()];
+                NSRegularExpression *r = [NSRegularExpression regularExpressionWithPattern:@"\\(\\w+\\) " options:NSRegularExpressionCaseInsensitive error:NULL];
+                n = [n substringWithRange:[r rangeOfFirstMatchInString:n options:0 range:NSMakeRange(0, n.length)]];
+                n = [n substringWithRange:NSMakeRange(1, n.length - 3)];
+                changeName(DDIRReplaceResultGlobalVariableKey, m, n, newName);
+                changeName(DDIRReplaceResultFunctionKey, f, n, newName);
             }
         }
-        return true;
+        return result;
     }
-    return false;
+    return nil;
 }
 
 - (BOOL)moveCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className to:(nonnull NSString *)section

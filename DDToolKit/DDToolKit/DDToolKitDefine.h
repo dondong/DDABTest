@@ -8,6 +8,7 @@
 #ifndef DDToolKitDefine_h
 #define DDToolKitDefine_h
 
-#define EnableDebug 0
+#define EnableDebug    0
+#define CleanTempFiles 1
 
 #endif /* DDToolKitDefine_h */

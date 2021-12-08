@@ -21,6 +21,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic,strong,readonly,nonnull) NSArray<DDIRFunction *> *functionList;
 @end
 
+static NSString * const DDIRReplaceResultGlobalVariableKey = @"DDIRReplaceResultGlobalVariableKey";
+static NSString * const DDIRReplaceResultFunctionKey       = @"DDIRReplaceResultFunctionKey";
 @interface DDIRModule : NSObject
 @property(nonatomic,strong,readonly,nonnull) NSString *path;
 + (nullable instancetype)moduleFromPath:(nonnull NSString *)path;
@@ -34,15 +36,16 @@ NS_ASSUME_NONNULL_BEGIN
 /*
  change
  */
+typedef NSDictionary<NSString *, NSDictionary<NSString *, NSString *> *> DDIRReplaceResult;
 // function
 - (BOOL)replaceFunction:(nonnull NSString *)funName withNewComponentName:(nonnull NSString *)newName;
 // class
 - (void)addEmptyClass:(nonnull NSString *)className;
-- (BOOL)replaceObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName;
+- (nullable DDIRReplaceResult *)replaceObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName;
 - (BOOL)moveClass:(nonnull NSString *)className to:(nonnull NSString *)section;
 // category
 - (void)addEmptyCategory:(nonnull NSString *)categoryName toClass:(nonnull NSString *)className;
-- (BOOL)replaceCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName;
+- (nullable DDIRReplaceResult *)replaceCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName;
 - (BOOL)moveCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className to:(nonnull NSString *)section;
 // protocol
 - (BOOL)replaceObjcProtocol:(nonnull NSString *)protocolName withNewComponentName:(nonnull NSString *)newName;

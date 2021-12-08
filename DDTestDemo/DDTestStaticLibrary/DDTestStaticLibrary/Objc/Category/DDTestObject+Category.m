@@ -14,11 +14,11 @@
 #endif
 + (void)categoryStaticTestObject
 {
-    DDLog(@"+[DDTestObject categoryStaticTestObject]");
+    DDLog(@"+[DDTestObject(Category) categoryStaticTestObject]");
 }
 - (void)categoryInstanceTestObject
 {
-    DDLog(@"-[DDTestObject categoryInstanceTestObject]");
+    DDLog(@"-[DDTestObject(Category) categoryInstanceTestObject]");
 }
 @end
 

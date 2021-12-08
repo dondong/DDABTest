@@ -220,6 +220,19 @@ toGlobalArrayWithSection:"__DATA,__objc_classlist"
                                         classPropList:(std::vector<llvm::Constant *>)classProps
                                              inModule:(llvm::Module * _Nonnull)module
 {
+    return [self createObjcCategory:categoryName cls:cls withMethodList:methods classMethodList:classMethods protocolList:protocols propList:props classPropList:classProps labelAtIndex:0 inModule:module];
+}
+
++ (llvm::GlobalVariable * _Nonnull)createObjcCategory:(const char * _Nonnull)categoryName
+                                                  cls:(llvm::GlobalVariable * _Nonnull)cls
+                                       withMethodList:(std::vector<llvm::Constant *>)methods
+                                      classMethodList:(std::vector<llvm::Constant *>)classMethods
+                                         protocolList:(std::vector<llvm::Constant *>)protocols
+                                             propList:(std::vector<llvm::Constant *>)props
+                                        classPropList:(std::vector<llvm::Constant *>)classProps
+                                         labelAtIndex:(NSUInteger)index
+                                             inModule:(llvm::Module * _Nonnull)module
+{
     NSDictionary *dic = [self getObjcCategoryTypeInModule:module];
     std::vector<Constant *> datas;
     Constant *zero = ConstantInt::get(Type::getInt32Ty(module->getContext()), 0);
@@ -282,6 +295,7 @@ toGlobalArrayWithSection:"__DATA,__objc_classlist"
     [self insertValue:ConstantExpr::getBitCast(cast<Constant>(ret), Type::getInt8PtrTy(module->getContext()))
 toGlobalArrayWithSection:"__DATA,__objc_catlist"
           defaultName:"OBJC_LABEL_CATEGORY_$"
+                   at:index
              inModule:module];
     return ret;
 }
@@ -537,6 +551,80 @@ toGlobalArrayWithSection:"__DATA,__objc_catlist"
                    at:0
              inModule:module];
     return ret;
+}
+
+#pragma mark get or create
++ (llvm::GlobalVariable * _Nonnull)getAndCreateClassReference:(llvm::GlobalVariable * _Nonnull)cls
+                                                     inModule:(llvm::Module * _Nonnull)module
+{
+    GlobalVariable *clsRef = nullptr;
+    for (GlobalVariable &v : module->getGlobalList()) {
+        if (v.hasInitializer() && v.getInitializer() == cls &&
+            v.hasSection() && 0 == strncmp(v.getSection().data(), "__DATA,__objc_classrefs", 23)) {
+            clsRef = std::addressof(v);
+            break;
+        }
+    }
+    if (nullptr == clsRef) {
+        clsRef = new GlobalVariable(*module,
+                                    [self getStructType:IR_Objc_ClassTypeName inModule:module]->getPointerTo(),
+                                    true,
+                                    GlobalValue::InternalLinkage,
+                                    cls,
+                                    "OBJC_CLASSLIST_REFERENCES_$_");
+        clsRef->setSection("__DATA,__objc_classrefs,regular,no_dead_strip");
+        clsRef->setAlignment(MaybeAlign(8));
+        [self insertValue:ConstantExpr::getBitCast(clsRef, Type::getInt8PtrTy(module->getContext()))
+            toGlobalArray:[self getLlvmCompilerUsedInModule:module]
+                       at:0
+                 inModule:module];
+    }
+    return clsRef;
+}
+
++ (llvm::GlobalVariable * _Nonnull)getAndCreateSelectorReference:(const char * _Nonnull)selector
+                                                         inClass:(llvm::GlobalVariable * _Nonnull)cls
+                                                        inModule:(llvm::Module * _Nonnull)module
+{
+    GlobalVariable *selRef = nullptr;
+    GlobalVariable *metaCls = dyn_cast<GlobalVariable>(cls->getInitializer()->getOperand(0));
+    GlobalVariable *metaRo = dyn_cast<GlobalVariable>(metaCls->getInitializer()->getOperand(4));
+    ConstantStruct *metaMethodStruct = dyn_cast<ConstantStruct>(getValue(metaRo, 5)->getInitializer());
+    uint64_t methodCount = (dyn_cast<ConstantInt>(metaMethodStruct->getOperand(1)))->getZExtValue();
+    ConstantArray *methodList = dyn_cast<ConstantArray>(metaMethodStruct->getOperand(2));
+    GlobalVariable *methodName = nullptr;
+    for (int i = 0; i < methodCount; ++i) {
+        GlobalVariable *m = dyn_cast<GlobalVariable>(dyn_cast<ConstantExpr>(methodList->getOperand(i)->getOperand(0))->getOperand(0));
+        if (0 == strcmp(selector, [[self stringFromGlobalVariable:m] cStringUsingEncoding:NSUTF8StringEncoding])) {
+            methodName = m;
+            break;
+        }
+    }
+    for (GlobalVariable &v : module->getGlobalList()) {
+        if (v.hasInitializer() && v.getInitializer()->getNumOperands() == 3 && v.getInitializer()->getOperand(0) == cls &&
+            v.hasSection() && 0 == strncmp(v.getSection().data(), "__DATA,__objc_selrefs", 21)) {
+            selRef = std::addressof(v);
+            break;
+        }
+    }
+    if (nullptr == selRef) {
+        Constant *zero = ConstantInt::get(Type::getInt32Ty(module->getContext()), 0);
+        selRef = new GlobalVariable(*module,
+                                    Type::getInt8PtrTy(module->getContext()),
+                                    false,
+                                    GlobalValue::InternalLinkage,
+                                    ConstantExpr::getInBoundsGetElementPtr(methodName->getInitializer()->getType(), methodName, (Constant *[]){zero, zero}),
+                                    "OBJC_SELECTOR_REFERENCES_");
+        selRef->setExternallyInitialized(true);
+        selRef->setSection("__DATA,__objc_selrefs,literal_pointers,no_dead_strip");
+        selRef->setAlignment(MaybeAlign(8));
+        [self insertValue:ConstantExpr::getBitCast(selRef, Type::getInt8PtrTy(module->getContext()))
+            toGlobalArray:[self getLlvmCompilerUsedInModule:module]
+                       at:0
+                 inModule:module];
+    }
+    
+    return selRef;
 }
 
 #pragma mark get
