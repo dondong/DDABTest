@@ -7,6 +7,7 @@
 
 #import "AppDelegate.h"
 #import <DDTestStaticLibrary/DDTestDemo.h>
+#import <AFNetworking/AFNetworking.h>
 
 @interface AppDelegate ()
 
@@ -31,6 +32,21 @@
     // Override point for customization after application launch.
     [DDTestDemo test];
     [DDTestDemo myCategory];
+    
+    NSURLSessionConfiguration *configuration = [NSURLSessionConfiguration defaultSessionConfiguration];
+    AFURLSessionManager *manager = [[AFURLSessionManager alloc] initWithSessionConfiguration:configuration];
+
+    NSURL *URL = [NSURL URLWithString:@"http://static.runoob.com/images/demo/demo2.jpg"];
+    NSURLRequest *request = [NSURLRequest requestWithURL:URL];
+
+    NSURLSessionDownloadTask *downloadTask = [manager downloadTaskWithRequest:request progress:nil destination:^NSURL *(NSURL *targetPath, NSURLResponse *response) {
+        NSURL *documentsDirectoryURL = [[NSFileManager defaultManager] URLForDirectory:NSDocumentDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:NO error:nil];
+        return [documentsDirectoryURL URLByAppendingPathComponent:[response suggestedFilename]];
+    } completionHandler:^(NSURLResponse *response, NSURL *filePath, NSError *error) {
+        NSLog(@"File downloaded to: %@", filePath);
+    }];
+    [downloadTask resume];
+    
     return YES;
 }
 

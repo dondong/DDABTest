@@ -14,6 +14,7 @@
 @interface DDIRModule()
 @property(nonatomic,assign,readwrite) llvm::Module * _Nullable module;
 @property(nonatomic,strong,readwrite,nonnull) NSString *path;
+@property(nonatomic,strong,readwrite,nullable) DDIRModulePath *modulePath;
 @end
 
 #endif /* DDIRModule_Private_h */

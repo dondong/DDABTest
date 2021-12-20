@@ -20,6 +20,8 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index);
 + (llvm::GlobalVariable * _Nonnull)getLlvmUsedInModule:(llvm::Module * _Nonnull)module;
 + (llvm::GlobalVariable * _Nullable)getGlabalArrayWithSection:(const char * _Nonnull)sectionName inModule:(llvm::Module * _Nonnull)module;
 + (llvm::StructType * _Nullable)getStructType:(const char * _Nonnull)name inModule:(llvm::Module * _Nonnull)module;
++ (bool)isExternalStaticVariable:(llvm::GlobalVariable * _Nonnull)var;
++ (bool)isExternalStaticVariableDeclaration:(llvm::GlobalVariable * _Nonnull)var;
 + (bool)onlyUsedByLLVM:(llvm::GlobalValue * _Nonnull)var;
 // create
 + (llvm::GlobalVariable * _Nonnull)createGlobalVariableName:(const char * _Nonnull)name
@@ -61,7 +63,7 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index);
                       toGlobalArrayWithSection:(const char * _Nonnull)sectionName
                                    defaultName:(const char * _Nonnull)name
                                             at:(NSUInteger)index
-inModule:(llvm::Module * _Nonnull)module;
+                                      inModule:(llvm::Module * _Nonnull)module;
 // atributes
 + (nonnull NSString *)stringFromGlobalVariable:(llvm::GlobalVariable * _Nonnull)var;
 @end

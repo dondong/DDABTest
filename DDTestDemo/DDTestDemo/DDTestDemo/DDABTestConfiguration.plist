@@ -2,6 +2,28 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>AFNetworking</key>
+	<dict>
+		<key>components</key>
+		<array>
+			<dict>
+				<key>index</key>
+				<integer>0</integer>
+				<key>tag</key>
+				<string>2.6.0</string>
+			</dict>
+			<dict>
+				<key>index</key>
+				<integer>1</integer>
+				<key>tag</key>
+				<string>3.0.0</string>
+			</dict>
+		</array>
+		<key>module_id</key>
+		<integer>5</integer>
+		<key>module_name</key>
+		<string>AFNetworking</string>
+	</dict>
 	<key>DDTestStaticLibrary</key>
 	<dict>
 		<key>components</key>

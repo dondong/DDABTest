@@ -10,6 +10,7 @@
 #import "DDCommonDefine.h"
 #import "DDIRUtil.h"
 #import "DDIRUtil+Objc.h"
+#import <objc/runtime.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/IRBuilder.h>
@@ -27,6 +28,7 @@ using namespace llvm;
 #define ConfigurationKey_Category(index) ([NSString stringWithFormat:@"category_%d", (int)index])
 
 #define ModuleReferenceFunctions "reference.functions"
+#define ModuleReferenceVarables  "reference.varables"
 #define GetAppendValue(str) ((unsigned long)str.hash % 10000)
 
 @interface DDIRModuleMergeInfo()
@@ -34,21 +36,33 @@ using namespace llvm;
 @end
 
 @implementation DDIRModule(Merge)
-+ (nonnull DDIRChangeRecord *)mergeIRFiles:(nonnull NSArray<NSString *> *)pathes withControlId:(UInt32)controlId toIRFile:(nonnull NSString *)outputPath
++ (nonnull DDIRChangeReplaceRecord *)mergeIRFiles:(nonnull NSArray<NSString *> *)pathes withControlId:(UInt32)controlId toIRFile:(nonnull NSString *)outputPath
+{
+    NSMutableArray *array = [NSMutableArray array];
+    for (NSString *path in pathes) {
+        DDIRModulePath *p = [[DDIRModulePath alloc] init];
+        p.path = path;
+        [array addObject:p];
+    }
+    return [self mergeIRModules:array withControlId:controlId toIRFile:outputPath];
+}
+
++ (nonnull DDIRChangeReplaceRecord *)mergeIRModules:(nonnull NSArray<DDIRModulePath *> *)moudules withControlId:(UInt32)controlId toIRFile:(nonnull NSString *)outputPath
 {
     NSMutableDictionary *changeRecords = [NSMutableDictionary dictionary];
     NSMutableArray<DDIRModule *> *moduleList = [NSMutableArray array];
-    for (NSString *p in pathes) {
-        DDIRModule *m = [DDIRModule moduleFromPath:p];
+    for (DDIRModule *module in moudules) {
+        DDIRModule *m = [DDIRModule moduleFromPath:module.path];
         [moduleList addObject:m];
     }
     NSMutableDictionary *mergeConfiguration = [NSMutableDictionary dictionary];
-    NSMutableDictionary *mergeClassList = [NSMutableDictionary dictionary];
-    NSMutableDictionary *mergeCategoryList = [NSMutableDictionary dictionary];
-    NSMutableDictionary *mergeProtocolList = [NSMutableDictionary dictionary];
-    NSMutableDictionary *mergeProtocolMap = [NSMutableDictionary dictionary];
-    NSMutableDictionary *mergeFunctionList = [NSMutableDictionary dictionary];
-    NSMutableDictionary *initFuncList = [NSMutableDictionary dictionary];
+    NSMutableDictionary *mergeClassList     = [NSMutableDictionary dictionary];
+    NSMutableDictionary *mergeCategoryList  = [NSMutableDictionary dictionary];
+    NSMutableDictionary *mergeProtocolList  = [NSMutableDictionary dictionary];
+    NSMutableDictionary *mergeProtocolMap   = [NSMutableDictionary dictionary];
+    NSMutableDictionary *mergeFunctionList  = [NSMutableDictionary dictionary];
+    NSMutableDictionary *initFuncList       = [NSMutableDictionary dictionary];
+    NSMutableDictionary *mergeStaticVarList = [NSMutableDictionary dictionary];
     [mergeConfiguration setObject:@(controlId) forKey:ConfigurationKey_ControlId];
     [mergeConfiguration setObject:initFuncList forKey:ConfigurationKey_InitFuction];
     [mergeConfiguration setObject:changeRecords forKey:ConfigurationKey_ChangeRecord];
@@ -62,10 +76,11 @@ using namespace llvm;
         [mergeConfiguration setObject:[NSMutableArray array] forKey:ConfigurationKey_Category(i)];
         [initFuncList setObject:[NSMutableArray array] forKey:@(i)];
         NSString *appendStr = [NSString stringWithFormat:@"%lu", GetAppendValue(module.path)];
-        NSMutableArray<NSArray<NSString *> *> *classChangeList    = [NSMutableArray array];
-        NSMutableArray<NSArray<NSString *> *> *categoryChangeList = [NSMutableArray array];
-        NSMutableArray<NSArray<NSString *> *> *protocolChangeList = [NSMutableArray array];
-        NSMutableArray<NSArray<NSString *> *> *functionChangeList = [NSMutableArray array];
+        NSMutableArray<NSArray<NSString *> *> *classChangeList     = [NSMutableArray array];
+        NSMutableArray<NSArray<NSString *> *> *categoryChangeList  = [NSMutableArray array];
+        NSMutableArray<NSArray<NSString *> *> *protocolChangeList  = [NSMutableArray array];
+        NSMutableArray<NSArray<NSString *> *> *functionChangeList  = [NSMutableArray array];
+        NSMutableArray<NSArray<NSString *> *> *staticVarChangeList = [NSMutableArray array];
         DDIRModuleData *data = [module getData];
         for (DDIRObjCClass *c in data.objcClassList) {
             if (nil == [mergeClassList objectForKey:c.className]) {
@@ -112,6 +127,15 @@ using namespace llvm;
                 [functionChangeList addObject:@[f.name, newName]];
             }
         }
+        for (DDIRGlobalVariable *v in data.staticVariableList) {
+            if (nil == [mergeStaticVarList objectForKey:v.name]) {
+                [mergeStaticVarList setObject:@[[DDIRModuleMergeInfo infoWithTarget:v.name index:i]].mutableCopy forKey:v.name];
+            } else {
+                NSString *newName = [v.name stringByAppendingString:appendStr];
+                [[mergeStaticVarList objectForKey:v.name] addObject:[DDIRModuleMergeInfo infoWithTarget:newName index:i]];
+                [staticVarChangeList addObject:@[v.name, newName]];
+            }
+        }
         [module executeChangesWithBlock:^(DDIRModule * _Nullable m) {
             for (NSArray *arr in protocolChangeList) {
                 [m replaceObjcProtocol:arr[0] withNewComponentName:arr[1]];
@@ -142,14 +166,35 @@ using namespace llvm;
                 [m replaceFunction:arr[0] withNewComponentName:arr[1]];
                 [changeFunRecords setObject:arr[1] forKey:arr[0]];
             }
+            // keep all static variable, avoid not referenced external variable be deleted
+            std::vector<Constant *> staticVarList;
+            for (DDIRGlobalVariable *variable in data.staticVariableList) {
+                GlobalVariable *var = m.module->getGlobalVariable([variable.name cStringUsingEncoding:NSUTF8StringEncoding]);
+                staticVarList.push_back(ConstantExpr::getBitCast(var, Type::getInt8PtrTy(m.module->getContext())));
+            }
+            new GlobalVariable(*m.module,
+                               ArrayType::get(Type::getInt8PtrTy(m.module->getContext()), functionList.size()),
+                               false,
+                               GlobalValue::AppendingLinkage,
+                               ConstantArray::get(ArrayType::get(Type::getInt8PtrTy(m.module->getContext()), functionList.size()), functionList),
+                               ModuleReferenceVarables);
+            for (NSArray *arr in staticVarChangeList) {
+                m.module->getGlobalVariable([arr[0] cStringUsingEncoding:NSUTF8StringEncoding])->setName([arr[1] cStringUsingEncoding:NSUTF8StringEncoding]);
+                [changeVarRecords setObject:arr[1] forKey:arr[0]];
+            }
         }];
     }
     
+    NSMutableArray *pathes = [NSMutableArray array];
+    for (DDIRModulePath *m in moudules) {
+        [pathes addObject:m.path];
+    }
     [DDIRModule linkIRFiles:pathes toIRFile:outputPath];
     DDIRModule *module = [DDIRModule moduleFromPath:outputPath];
     
     [module executeChangesWithBlock:^(DDIRModule * _Nullable m) {
         m.module->getGlobalVariable(ModuleReferenceFunctions)->eraseFromParent();
+        m.module->getGlobalVariable(ModuleReferenceVarables)->eraseFromParent();
         // protocol
         for (NSString *name in mergeProtocolList.allKeys) {
             NSArray *nameList = [mergeProtocolList objectForKey:name];
@@ -215,57 +260,6 @@ using namespace llvm;
                 [m _mergeCategoryInfos:cats forClass:name withSize:pathes.count controlVariable:control configuration:mergeConfiguration];
             }
         }
-//        for (NSString *name in mergeCategoryList.allKeys) {
-//            NSArray *cats = [mergeCategoryList objectForKey:name];
-//            if (cats.count > 0) {
-//                [m _mergeCategoryInfos:cats forClass:name withSize:pathes.count configuration:mergeConfiguration];
-//            }
-//        }
-//        for (int i = 0; i < moduleList.count; ++i) {
-//            NSString *key = ConfigurationKey_Category(i);
-//            NSMutableArray *arr = [mergeConfiguration objectForKey:key];
-//            if (arr.count == 0) {
-//                continue;
-//            }
-//            std::vector<Constant *> list;
-//            for (NSValue *val in arr) {
-//                GlobalVariable *v = (GlobalVariable *)[val pointerValue];
-//                list.push_back(v->getInitializer());
-//            }
-//            std::vector<Type *> types;
-//            StructType *mapType = [m _getCategoryMapType];
-//            types.push_back(Type::getInt32Ty(m.module->getContext()));
-//            types.push_back(Type::getInt32Ty(m.module->getContext()));
-//            types.push_back(Type::getInt32Ty(m.module->getContext()));
-//            types.push_back(ArrayType::get(mapType, list.size()));
-//            std::vector<Constant *> datas;
-//            datas.push_back(ConstantInt::get(Type::getInt32Ty(m.module->getContext()), controlId));
-//            datas.push_back(ConstantInt::get(Type::getInt32Ty(m.module->getContext()), i));
-//            datas.push_back(ConstantInt::get(Type::getInt32Ty(m.module->getContext()), list.size()));
-//            datas.push_back(ConstantArray::get(ArrayType::get(mapType, list.size()), list));
-//            Constant *value = ConstantStruct::get(StructType::get(m.module->getContext(), types), datas);
-//            GlobalVariable *item = new GlobalVariable(*m.module,
-//                                                      value->getType(),
-//                                                      false,
-//                                                      GlobalValue::InternalLinkage,
-//                                                      value,
-//                                                      [[NSString stringWithFormat:@"_DD_OBJC_Category_MAP_$_%d", controlId] cStringUsingEncoding:NSUTF8StringEncoding]);
-//            item->setSection("__DATA, __objc_const");
-//            item->setAlignment(MaybeAlign(8));
-//            [DDIRUtil insertValue:ConstantExpr::getBitCast(cast<Constant>(item), Type::getInt8PtrTy(m.module->getContext()))
-//                    toGlobalArray:[DDIRUtil getLlvmCompilerUsedInModule:m.module]
-//                               at:0
-//                         inModule:m.module];
-//            [DDIRUtil insertValue:ConstantExpr::getBitCast(cast<Constant>(item), Type::getInt8PtrTy(m.module->getContext()))
-//         toGlobalArrayWithSection:[[NSString stringWithFormat:@"__DATA,%@", DDDefaultCatMapSection] cStringUsingEncoding:NSUTF8StringEncoding]
-//                      defaultName:"OBJC_LABEL_CATEGORY_MAP_$"
-//                         inModule:m.module];
-//
-//            for (NSValue *val in arr) {
-//                GlobalVariable *v = (GlobalVariable *)[val pointerValue];
-//                v->eraseFromParent();
-//            }
-//        }
         // function
         for (NSString *name in mergeFunctionList.allKeys) {
             NSArray *funs = [mergeFunctionList objectForKey:name];
@@ -278,63 +272,83 @@ using namespace llvm;
     return changeRecords;
 }
 
-+ (void)extractObjcDataAndFunctionDeclarationFromIRFiles:(nonnull NSArray<NSString *> *)pathes toIRFile:(nonnull NSString *)outputPath
+#pragma mark change
+- (nonnull DDIRChangeDeclareRecord *)extractObjcDataAndFunctionDeclaration
 {
-    [self linkIRFiles:pathes toIRFile:outputPath];
-    DDIRModule *module = [DDIRModule moduleFromPath:outputPath];
-    if (nil != module) {
-        [module executeChangesWithBlock:^(DDIRModule * _Nullable m) {
-            std::vector<Function *> defineFunctionList;
-            std::vector<Function *> declareFunctionList;
-            for (Function &fun : m.module->getFunctionList()) {
-                if (fun.getBasicBlockList().size() > 0) {
-                    defineFunctionList.push_back(std::addressof(fun));
-                } else {
-                    declareFunctionList.push_back(std::addressof(fun));
-                }
-            }
-            for (Function *fun : defineFunctionList) {
-                NSString *name = [NSString stringWithFormat:@"%s", fun->getName().data()];
-                fun->setName("temp_function");
-                Function *newFun = Function::Create(fun->getFunctionType(), GlobalValue::ExternalLinkage, [name cStringUsingEncoding:NSUTF8StringEncoding], m.module);
-                [DDIRUtil replaceFuction:fun with:newFun];
-                fun->eraseFromParent();
-            }
-            for (Function *fun : declareFunctionList) {
-                fun->eraseFromParent();
-            }
-            bool shouldContinue = true;
-            while(shouldContinue) {
-                shouldContinue = false;
-                for (GlobalVariable &var : m.module->getGlobalList()) {
-                    if (false == var.hasSection() ||
-                        (0 != strncmp(var.getSection().data(), "llvm.", 5) &&
-                         0 != strncmp(var.getSection().data(), "__DATA,__objc_classlist", 23) &&
-                         0 != strncmp(var.getSection().data(), "__DATA,__objc_catlist", 21) &&
-                         0 != strncmp(var.getSection().data(), "__DATA,__objc_nlclslist", 23) &&
-                         0 != strncmp(var.getSection().data(), "__DATA,__objc_nlcatlist", 23) &&
-                         0 != strncmp(var.getSection().data(), "__DATA,__objc_protolist", 23))) {
-                        if (0 != strcmp(var.getName().data(), "llvm.global_ctors")) {
-                            var.removeDeadConstantUsers();
-                            if (var.getNumUses() == 0 || [DDIRUtil onlyUsedByLLVM:std::addressof(var)]) {
-                                [DDIRUtil removeGlobalValue:std::addressof(var) ignoreFunction:true inModule:m.module];
-                                shouldContinue = true;
-                                break;
-                            }
-                        }
+    NSMutableDictionary *changeRecords = [NSMutableDictionary dictionary];std::vector<Function *> defineFunctionList;
+    std::vector<Function *> declareFunctionList;
+    for (Function &fun : self.module->getFunctionList()) {
+        if (fun.getBasicBlockList().size() > 0) {
+            defineFunctionList.push_back(std::addressof(fun));
+        } else {
+            declareFunctionList.push_back(std::addressof(fun));
+        }
+    }
+    NSMutableArray *changeFunctionList = [NSMutableArray array];
+    [changeRecords setObject:changeFunctionList forKey:DDIRReplaceResultFunctionKey];
+    for (Function *fun : defineFunctionList) {
+        NSString *name = [NSString stringWithFormat:@"%s", fun->getName().data()];
+        fun->setName("temp_function");
+        Function *newFun = Function::Create(fun->getFunctionType(), GlobalValue::ExternalLinkage, [name cStringUsingEncoding:NSUTF8StringEncoding], self.module);
+        [DDIRUtil replaceFuction:fun with:newFun];
+        fun->eraseFromParent();
+        [changeFunctionList addObject:name];
+    }
+    for (Function *fun : declareFunctionList) {
+        fun->eraseFromParent();
+    }
+    bool shouldContinue = true;
+    while(shouldContinue) {
+        shouldContinue = false;
+        for (GlobalVariable &var : self.module->getGlobalList()) {
+            if (false == var.hasSection() ||
+                (0 != strncmp(var.getSection().data(), "llvm.", 5) &&
+                 0 != strncmp(var.getSection().data(), "__DATA,__objc_classlist", 23) &&
+                 0 != strncmp(var.getSection().data(), "__DATA,__objc_catlist", 21) &&
+                 0 != strncmp(var.getSection().data(), "__DATA,__objc_nlclslist", 23) &&
+                 0 != strncmp(var.getSection().data(), "__DATA,__objc_nlcatlist", 23) &&
+                 0 != strncmp(var.getSection().data(), "__DATA,__objc_protolist", 23))) {
+                if (0 != strcmp(var.getName().data(), "llvm.global_ctors")) {
+                    var.removeDeadConstantUsers();
+                    if ((var.getNumUses() == 0 || [DDIRUtil onlyUsedByLLVM:std::addressof(var)]) /* no used by code */ &&
+                        false == [DDIRUtil isExternalStaticVariableDeclaration:std::addressof(var)]/* staitc variable may not be used, but it should be remained */) {
+                        [DDIRUtil removeGlobalValue:std::addressof(var) ignoreFunction:true inModule:self.module];
+                        shouldContinue = true;
+                        break;
                     }
                 }
             }
-            while (m.module->named_metadata_begin() != m.module->named_metadata_end()) {
-                auto node = m.module->named_metadata_begin();
-                m.module->eraseNamedMetadata(std::addressof(*node));
-            }
-            [m mergeObjcData];
-        }];
+        }
     }
+    std::vector<GlobalVariable *> staticVariableList;
+    for (GlobalVariable &var : self.module->getGlobalList()) {
+        if (true == [DDIRUtil isExternalStaticVariable:std::addressof(var)]) {
+            staticVariableList.push_back(std::addressof(var));
+        }
+    }
+    NSMutableArray *changeVariableList = [NSMutableArray array];
+    [changeRecords setObject:changeVariableList forKey:DDIRReplaceResultGlobalVariableKey];
+    for (GlobalVariable *var : staticVariableList) {
+        NSString *name = [NSString stringWithFormat:@"%s", var->getName().data()];
+        var->setName("temp_var");
+        GlobalVariable *newVar = new GlobalVariable(*self.module,
+                                                    var->getInitializer()->getType(),
+                                                    true,
+                                                    GlobalValue::ExternalLinkage,
+                                                    nullptr,
+                                                    [name cStringUsingEncoding:NSUTF8StringEncoding]);
+        [DDIRUtil replaceGlobalVariable:var with:newVar];
+        var->eraseFromParent();
+        [changeVariableList addObject:name];
+    }
+    while (self.module->named_metadata_begin() != self.module->named_metadata_end()) {
+        auto node = self.module->named_metadata_begin();
+        self.module->eraseNamedMetadata(std::addressof(*node));
+    }
+    [self mergeObjcData];
+    return [NSDictionary dictionaryWithDictionary:changeRecords];
 }
 
-#pragma mark change
 - (void)remeveObjcData
 {
     bool should = true;
@@ -351,18 +365,28 @@ using namespace llvm;
             varList.push_back(std::addressof(var));
         }
     }
+    NSMutableDictionary *remap = [NSMutableDictionary dictionary];
     for (GlobalVariable *var : referenceList) {
         if (var->hasInitializer()) {
             if (auto cls = dyn_cast<GlobalVariable>(var->getInitializer())) {
-                NSString *oldName = [NSString stringWithFormat:@"%s", cls->getName().data()];
-                cls->setName([[NSString stringWithFormat:@"%@.tmp", oldName] cStringUsingEncoding:NSUTF8StringEncoding]);
-                GlobalVariable *newCls = new GlobalVariable(*self.module,
-                                                            [DDIRUtil getStructType:IR_Objc_ClassTypeName inModule:self.module],
-                                                            false,
-                                                            GlobalValue::ExternalLinkage,
-                                                            nullptr,
-                                                            [oldName cStringUsingEncoding:NSUTF8StringEncoding]);
-                var->setInitializer(newCls);
+                if (cls->hasInitializer()) {
+                    NSValue *key = [NSValue valueWithPointer:cls];
+                    if (nil == [remap objectForKey:key]) {
+                        NSString *oldName = [NSString stringWithFormat:@"%s", cls->getName().data()];
+                        cls->setName([[NSString stringWithFormat:@"%@.tmp", oldName] cStringUsingEncoding:NSUTF8StringEncoding]);
+                        GlobalVariable *newCls = new GlobalVariable(*self.module,
+                                                                    [DDIRUtil getStructType:IR_Objc_ClassTypeName inModule:self.module],
+                                                                    false,
+                                                                    GlobalValue::ExternalLinkage,
+                                                                    nullptr,
+                                                                    [oldName cStringUsingEncoding:NSUTF8StringEncoding]);
+                        var->setInitializer(newCls);
+                        [remap setObject:[NSValue valueWithPointer:newCls] forKey:[NSValue valueWithPointer:cls]];
+                    } else {
+                        GlobalVariable *newCls = (GlobalVariable *)[[remap objectForKey:key] pointerValue];
+                        var->setInitializer(newCls);
+                    }
+                }
             }
         }
     }
@@ -411,6 +435,10 @@ using namespace llvm;
         var->eraseFromParent();
     }
     for (Function &fun : self.module->getFunctionList()) {
+        if (0 == strcmp(fun.getName().data(), "__Block_byref_object_copy_") ||
+            0 == strcmp(fun.getName().data(), "__Block_byref_object_dispose_")) {
+            continue;
+        }
         if (fun.getLinkage() == GlobalValue::InternalLinkage) {
             fun.setLinkage(GlobalValue::ExternalLinkage);
         }
@@ -1536,11 +1564,14 @@ public:
             Argument *arg = fun->getArg(j);
             argList.push_back(builder.CreateBitCast(arg, functionList[i]->getFunctionType()->getParamType(j)));
         }
-        CallInst *callInst = builder.CreateCall(functionList[i], argList);
+        Value *returnValue = builder.CreateCall(functionList[i], argList);
         if (fun->getReturnType()->isVoidTy()) {
             builder.CreateRetVoid();
         } else {
-            builder.CreateRet(callInst);
+            if (returnValue->getType() != fun->getFunctionType()->getReturnType()) {
+                returnValue = builder.CreateBitCast(returnValue, fun->getFunctionType()->getReturnType());
+            }
+            builder.CreateRet(returnValue);
         }
         inst->addCase(ConstantInt::get(Type::getInt32Ty(self.module->getContext()), infos[i].index), block);
     }
@@ -1991,5 +2022,17 @@ static GlobalVariable *_mergeObjcList(GlobalVariable *dst, int dIndex, GlobalVar
     info.target = target;
     info.index  = index;
     return info;
+}
+@end
+
+@implementation DDIRModulePath(Merge)
+static const char *declareChangedRecordKey = "declareChangedRecord";
+- (void)setDeclareChangedRecord:(DDIRChangeDeclareRecord *)declareChangedRecord
+{
+    objc_setAssociatedObject(self, declareChangedRecordKey, declareChangedRecord, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+- (DDIRChangeDeclareRecord *)declareChangedRecord
+{
+    return objc_getAssociatedObject(self, declareChangedRecordKey);
 }
 @end

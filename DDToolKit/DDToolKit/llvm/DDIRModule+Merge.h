@@ -15,11 +15,19 @@ NS_ASSUME_NONNULL_BEGIN
 + (instancetype)infoWithTarget:(nonnull NSString *)target index:(NSUInteger)index;
 @end
 
+//static NSString * const DDIRReplaceResultGlobalVariableKey;
+//static NSString * const DDIRReplaceResultFunctionKey;
+typedef NSDictionary<NSString *, NSArray<NSString *> *> DDIRChangeDeclareRecord;
+@interface DDIRModulePath(Merge)
+@property(nonatomic,strong) DDIRChangeDeclareRecord *declareChangedRecord;
+@end
+
 @interface DDIRModule(Merge)
-typedef NSDictionary<NSString *, DDIRReplaceResult *> DDIRChangeRecord;
-+ (nonnull DDIRChangeRecord *)mergeIRFiles:(nonnull NSArray<NSString *> *)pathes withControlId:(UInt32)controlId toIRFile:(nonnull NSString *)outputPath;
-+ (void)extractObjcDataAndFunctionDeclarationFromIRFiles:(nonnull NSArray<NSString *> *)pathes toIRFile:(nonnull NSString *)outputPath;
+typedef NSDictionary<NSString *, DDIRReplaceResult *> DDIRChangeReplaceRecord;
++ (nonnull DDIRChangeReplaceRecord *)mergeIRFiles:(nonnull NSArray<NSString *> *)pathes withControlId:(UInt32)controlId toIRFile:(nonnull NSString *)outputPath;
++ (nonnull DDIRChangeReplaceRecord *)mergeIRModules:(nonnull NSArray<DDIRModulePath *> *)moudules withControlId:(UInt32)controlId toIRFile:(nonnull NSString *)outputPath;
 // change
+- (nonnull DDIRChangeDeclareRecord *)extractObjcDataAndFunctionDeclaration;
 - (void)remeveObjcData;
 - (void)mergeObjcData;
 - (void)synchronzieReplaceResult:(nonnull DDIRReplaceResult *)result;

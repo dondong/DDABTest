@@ -18,7 +18,7 @@
     if (NO == [[NSFileManager defaultManager] fileExistsAtPath:tempDir]) {
         [[NSFileManager defaultManager] createDirectoryAtPath:tempDir withIntermediateDirectories:YES attributes:nil error:NULL];
     }
-    library.tmpPath = [tempDir stringByAppendingPathComponent:[NSString stringWithFormat:@"%ld", random()]];
+    library.tmpPath = [tempDir stringByAppendingPathComponent:[NSString stringWithFormat:@"%u", arc4random()]];
     if ([[NSFileManager defaultManager] fileExistsAtPath:library.tmpPath]) {
         [[NSFileManager defaultManager] removeItemAtPath:library.tmpPath error:NULL];
     }

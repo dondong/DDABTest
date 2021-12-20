@@ -13,12 +13,19 @@
 NS_ASSUME_NONNULL_BEGIN
 
 @interface DDIRModuleData : NSObject
-@property(nonatomic,strong,readonly,nonnull) NSArray<DDIRStringVariable *> *stringList;
+@property(nonatomic,strong,readonly,nonnull) NSArray<DDIRGlobalVariable *> *staticVariableList;
+@property(nonatomic,strong,readonly,nonnull) NSArray<DDIRGlobalVariable *> *externalStaticVariableList;
 @property(nonatomic,strong,readonly,nonnull) NSArray<DDIRObjCClass *> *objcClassList;
 @property(nonatomic,strong,readonly,nonnull) NSArray<DDIRObjCCategory *> *objcCategoryList;
 @property(nonatomic,strong,readonly,nonnull) NSArray<DDIRObjCProtocol *> *objcProtocolList;
 @property(nonatomic,strong,readonly,nonnull) NSArray<DDIRFunction *> *ctorFunctionList;
 @property(nonatomic,strong,readonly,nonnull) NSArray<DDIRFunction *> *functionList;
+@property(nonatomic,strong,readonly,nonnull) NSArray<DDIRFunction *> *hiddenFunctionList;
+@property(nonatomic,strong,readonly,nonnull) NSArray<DDIRFunction *> *externalFunctionList;
+@end
+
+@interface DDIRModulePath : NSObject
+@property(nonatomic,strong) NSString *path;
 @end
 
 static NSString * const DDIRReplaceResultGlobalVariableKey = @"DDIRReplaceResultGlobalVariableKey";
@@ -28,6 +35,7 @@ static NSString * const DDIRReplaceResultFunctionKey       = @"DDIRReplaceResult
 + (nullable instancetype)moduleFromPath:(nonnull NSString *)path;
 + (nullable instancetype)moduleFromBCPath:(nonnull NSString *)path;
 + (nullable instancetype)moduleFromLLPath:(nonnull NSString *)path;
++ (nullable instancetype)moduleFromModulePath:(nonnull DDIRModulePath *)path;
 + (void)linkIRFiles:(nonnull NSArray<NSString *> *)pathes toIRFile:(nonnull NSString *)outputPath;
 - (nullable DDIRModuleData *)getData;
 

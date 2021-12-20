@@ -47,13 +47,10 @@
             index++;
         }
     }
-//    // use bitcode file to build o file, will cash some unkown crash
-//    NSString *llfile = [info.tempDirectory stringByAppendingPathComponent:[info.moduleName stringByAppendingPathExtension:@"ll"]];
-//    [DDIRModule mergeIRFiles:irfilePathes withControlId:info.moduleId toIRFile:llfile];
     DDStaticLibrary *outputLibrary = [DDStaticLibrary mergeLibraries:libraries
                                                        withControlId:info.moduleId
                                                          toLibraries:info.outputPath
-                                                           directory:[info.tempDirectory stringByAppendingPathComponent:[NSString stringWithFormat:@"tmp_%lu", random()]]];
+                                                           directory:[info.tempDirectory stringByAppendingPathComponent:[NSString stringWithFormat:@"tmp_%u", arc4random()]]];
 #if CleanTempFiles
     [outputLibrary clear];
     for (DDStaticLibraryInfo *i in info.inputLibraries) {

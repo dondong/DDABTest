@@ -4,6 +4,12 @@
 <array>
 	<dict>
 		<key>module_id</key>
+		<integer>5</integer>
+		<key>index</key>
+		<integer>1</integer>
+	</dict>
+	<dict>
+		<key>module_id</key>
 		<integer>4</integer>
 		<key>index</key>
 		<integer>1</integer>

@@ -30,43 +30,48 @@
     NSMutableArray *headerPathList = [NSMutableArray array];
     for (int i = 0; i < libraries.count; ++i) {
         DDStaticLibrary *lib = [libraries objectAtIndex:i];
-#if EnableDebug
-        lib.headerPath = [outputDirectory stringByAppendingPathComponent:[NSString stringWithFormat:@"%@_%d.bc", [[lib.path lastPathComponent] stringByDeletingPathExtension], i]];
-#else
+        // use bitcode file to build o file, will cash some unkown crash
         lib.headerPath = [tmpDirectory stringByAppendingPathComponent:[NSString stringWithFormat:@"%@_%d.ll", [[lib.path lastPathComponent] stringByDeletingPathExtension], i]];
-#endif
         NSMutableArray *mergePathList = [NSMutableArray array];
         for (NSString *path in lib.pathList) {
             NSString *newPath =  [tmpDirectory stringByAppendingPathComponent:[NSString stringWithFormat:@"%@_%d.%@", [[path lastPathComponent] stringByDeletingPathExtension], i, [path pathExtension]]];
             [[NSFileManager defaultManager] copyItemAtPath:path toPath:newPath error:NULL];
             [mergePathList addObject:newPath];
-            [pathList addObject:newPath];
         }
-        [DDIRModule extractObjcDataAndFunctionDeclarationFromIRFiles:mergePathList toIRFile:lib.headerPath];
+        [DDIRModule linkIRFiles:mergePathList toIRFile:lib.headerPath];
+        DDIRModulePath *path = [[DDIRModulePath alloc] init];
+        path.path = lib.headerPath;
+        DDIRModule *headerModule = [DDIRModule moduleFromPath:lib.headerPath];
+        [headerModule executeChangesWithBlock:^(DDIRModule * _Nullable module) {
+            path.declareChangedRecord = [module extractObjcDataAndFunctionDeclaration];;
+        }];
         for (NSString *p in mergePathList) {
             DDIRModule *module  = [DDIRModule moduleFromPath:p];
 #if EnableDebug
-            [module executeChangesWithSavePath:[p stringByReplacingCharactersInRange:NSMakeRange(p.length - 3, 3) withString:@".ll"] block:^(DDIRModule * _Nullable m) {
-#else
             [module executeChangesWithBlock:^(DDIRModule * _Nullable m) {
+#else
+            [module executeChangesWithSavePath:[p stringByReplacingCharactersInRange:NSMakeRange(p.length - 3, 3) withString:@".ll"] block:^(DDIRModule * _Nullable m) {
 #endif
                 [m remeveObjcData];
             }];
         }
-        [headerPathList addObject:lib.headerPath];
+        [headerPathList addObject:path];
 #if EnableDebug
+        lib.mergePathList = mergePathList;
+#else
         lib.mergePathList = [NSMutableArray array];
         for (NSString *p in mergePathList) {
+            // use bitcode file to build o file, will cash some unkown crash
             [lib.mergePathList addObject:[p stringByReplacingCharactersInRange:NSMakeRange(p.length - 3, 3) withString:@".ll"]];
             [[NSFileManager defaultManager] removeItemAtPath:p error:NULL];
         }
-#else
-        lib.mergePathList = mergePathList;
 #endif
+        [pathList addObjectsFromArray:lib.mergePathList];
     }
+    // use bitcode file to build o file, will cash some unkown crash
     NSString *headerPath = [tmpDirectory stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.ll", [[outputLibrary lastPathComponent] stringByDeletingPathExtension]]];
     [pathList addObject:headerPath];
-    NSDictionary *changeRecords = [DDIRModule mergeIRFiles:headerPathList withControlId:controlId toIRFile:headerPath];
+    NSDictionary *changeRecords = [DDIRModule mergeIRModules:headerPathList withControlId:controlId toIRFile:headerPath];
     NSMutableDictionary *libDic = [NSMutableDictionary dictionary];
     for (DDStaticLibrary *lib in libraries) {
         [libDic setObject:lib forKey:lib.headerPath];
@@ -99,7 +104,7 @@
     NSMutableString *archPath = [NSMutableString string];
     NSMutableArray *archList = [NSMutableArray array];
     for (NSString *arch in ret.architectures) {
-        NSString *tmpDir = [ret.tmpPath stringByAppendingPathComponent:[NSString stringWithFormat:@"tmp_%lu", random()]];
+        NSString *tmpDir = [ret.tmpPath stringByAppendingPathComponent:[NSString stringWithFormat:@"tmp_%u", arc4random()]];
         [[NSFileManager defaultManager] removeItemAtPath:tmpDir error:NULL];
         [[NSFileManager defaultManager] createDirectoryAtPath:tmpDir withIntermediateDirectories:YES attributes:nil error:NULL];
         NSString *target = [self _targetForArch:arch];

@@ -7,6 +7,7 @@
 
 #import "DDIRModule.h"
 #import "DDIRModule+Private.h"
+#import "DDIRModule+Merge.h"
 #import "DDIRUtil.h"
 #import "DDIRUtil+Objc.h"
 #include <llvm/AsmParser/Parser.h>
@@ -28,12 +29,15 @@ using namespace llvm;
 
 @interface DDIRModuleData()
 @property(nonatomic,assign,readwrite) BOOL isBitcode;
-@property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRStringVariable *> *stringList;
+@property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRGlobalVariable *> *staticVariableList;
+@property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRGlobalVariable *> *externalStaticVariableList;
 @property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRObjCClass *> *objcClassList;
 @property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRObjCCategory *> *objcCategoryList;
 @property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRObjCProtocol *> *objcProtocolList;
 @property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRFunction *> *ctorFunctionList;
 @property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRFunction *> *functionList;
+@property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRFunction *> *hiddenFunctionList;
+@property(nonatomic,strong,readwrite,nonnull) NSArray<DDIRFunction *> *externalFunctionList;
 @end
 
 @implementation DDIRModule
@@ -68,6 +72,13 @@ using namespace llvm;
     
     DDIRModule *module = [[DDIRModule alloc] init];
     module.path = path;
+    return module;
+}
+
++ (nullable instancetype)moduleFromModulePath:(nonnull DDIRModulePath *)path
+{
+    DDIRModule *module = [DDIRModule moduleFromPath:path.path];
+    module.modulePath = path;
     return module;
 }
 
@@ -264,22 +275,31 @@ using namespace llvm;
     
     DDIRModuleData *data = [[DDIRModuleData alloc] init];
     
+    NSMutableDictionary *moduleStaticVariableDic = [NSMutableDictionary dictionary];
+    for (NSString *name in [self.modulePath.declareChangedRecord objectForKey:DDIRReplaceResultGlobalVariableKey]) {
+        [moduleStaticVariableDic setObject:name forKey:name];
+    }
     NSMutableDictionary *globalDic = [NSMutableDictionary dictionary];
     NSMutableDictionary *objcFuncDic = [NSMutableDictionary dictionary];
-    NSMutableArray *stringList = [[NSMutableArray alloc] init];
+    NSMutableArray *staticVariableList         = [[NSMutableArray alloc] init];
+    NSMutableArray *externalStaticVariableList = [[NSMutableArray alloc] init];
     NSMutableArray *objcClassList = [[NSMutableArray alloc] init];
     NSMutableArray *objcCategoryList = [[NSMutableArray alloc] init];
     NSMutableArray *objcProcotolList = [[NSMutableArray alloc] init];
     Module::GlobalListType &globallist = ptr->getGlobalList();
     for (GlobalVariable &v : globallist) {
-        if (0 == strncmp(v.getName().data(), ".str", 4) && nullptr != v.getValueType()) {
-            if (v.getInitializer()->getType()->isArrayTy()) {
-                ConstantDataArray *arr = dyn_cast<ConstantDataArray>(v.getInitializer());
-                if (nullptr != arr && arr->getElementType()->isIntegerTy()) {
-                    DDIRStringVariable *variable = [[DDIRStringVariable alloc] init];
-                    variable.name = [NSString stringWithFormat:@"%s", v.getName().data()];
-                    variable.value = [DDIRUtil stringFromGlobalVariable:std::addressof(v)];
-                    [stringList addObject:variable];
+        if ([DDIRUtil isExternalStaticVariableDeclaration:std::addressof(v)]) {
+            DDIRGlobalVariable *variable = [[DDIRGlobalVariable alloc] init];
+            variable.name = [NSString stringWithFormat:@"%s", v.getName().data()];
+            if (v.hasInitializer()) {
+                [staticVariableList addObject:variable];
+            } else {
+                if (nil != self.modulePath && nil != self.modulePath.declareChangedRecord) {
+                    if (nil != [moduleStaticVariableDic objectForKey:variable.name]) {
+                        [staticVariableList addObject:variable];
+                    }
+                } else {
+                    [externalStaticVariableList addObject:variable];
                 }
             }
         } else if (v.hasSection()) {
@@ -313,7 +333,7 @@ using namespace llvm;
             }
         }
     }
-    data.stringList = [NSArray arrayWithArray:stringList];
+    data.staticVariableList = [NSArray arrayWithArray:staticVariableList];
     data.objcClassList = [NSArray arrayWithArray:objcClassList];
     data.objcCategoryList = [NSArray arrayWithArray:objcCategoryList];
     data.objcProtocolList = [NSArray arrayWithArray:objcProcotolList];
@@ -331,17 +351,45 @@ using namespace llvm;
     }
     data.ctorFunctionList = [NSArray arrayWithArray:ctorFunctionList];
     
-    NSMutableArray *functionNameList = [[NSMutableArray alloc] init];
-    Module::FunctionListType &functionList = ptr->getFunctionList();
-    for (Function &f : functionList) {
+    NSMutableDictionary *moduleFunctionDic = [NSMutableDictionary dictionary];
+    for (NSString *name in [self.modulePath.declareChangedRecord objectForKey:DDIRReplaceResultFunctionKey]) {
+        [moduleFunctionDic setObject:name forKey:name];
+    }
+    NSMutableArray *functionList       = [[NSMutableArray alloc] init];
+    NSMutableArray *hiddenFunctionList = [[NSMutableArray alloc] init];
+    NSMutableArray *externalFunctionList = [[NSMutableArray alloc] init];
+    Module::FunctionListType &allFunctionList = ptr->getFunctionList();
+    for (Function &f : allFunctionList) {
         NSString *funName = [NSString stringWithFormat:@"%s", f.getName().data()];
+        if ([funName hasPrefix:@"__Block_byref_object_copy_"] ||
+            [funName hasPrefix:@"__Block_byref_object_dispose_"]) {
+            continue;
+        }
         if (nil == [objcFuncDic objectForKey:funName]) {
             DDIRFunction *function = [[DDIRFunction alloc] init];
             function.name = funName;
-            [functionNameList addObject:function];
+            if (f.size() > 0) {
+                if (true == f.hasHiddenVisibility()) {
+                    [hiddenFunctionList addObject:function];
+                } else {
+                    [functionList addObject:function];
+                }
+            } else {
+                if (nil != self.modulePath && nil != self.modulePath.declareChangedRecord) {
+                    if (nil != [moduleFunctionDic objectForKey:funName]) {
+                        if (true == f.hasHiddenVisibility()) {
+                            [functionList addObject:function];
+                        }
+                    }
+                } else {
+                    [externalFunctionList addObject:function];
+                }
+            }
         }
     }
-    data.functionList = [NSArray arrayWithArray:functionNameList];
+    data.functionList       = [NSArray arrayWithArray:functionList];
+    data.hiddenFunctionList = [NSArray arrayWithArray:hiddenFunctionList];
+    data.externalFunctionList = [NSArray arrayWithArray:externalFunctionList];
     ptr.release();
     return data;
 }
@@ -982,4 +1030,7 @@ static DDIRObjCCategory *_objCCategoryFromVariable(GlobalVariable *variable, NSM
 @end
 
 @implementation DDIRModuleData
+@end
+
+@implementation DDIRModulePath
 @end

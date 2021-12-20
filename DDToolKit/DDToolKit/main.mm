@@ -37,7 +37,7 @@ int main(int argc, const char * argv[]) {
             }
             if (libraries.count >= 1 && nil != info.moduleName && info.moduleId > 0 && nil != info.outputPath) {
                 if (nil == info.tempDirectory) {
-                    info.tempDirectory = [[info.outputPath stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"tmp"];
+                    info.tempDirectory = [[info.outputPath stringByDeletingLastPathComponent] stringByAppendingPathComponent:[NSString stringWithFormat:@"tmp_%u", arc4random()]];
                 }
                 if (nil == info.configPath) {
                     info.configPath = [[info.outputPath stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"DDABTestConfiguration.plist"];
