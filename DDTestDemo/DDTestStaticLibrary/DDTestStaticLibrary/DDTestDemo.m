@@ -11,6 +11,7 @@
 #import "DDTestChildObjectB.h"
 #import "NSObject+Category.h"
 #import "DDProtocolObject.h"
+#import "DDTestManager.h"
 
 @interface DDTestDemo() {
 }
@@ -50,6 +51,12 @@
     [DDProtocolObject protocolClassTest];
     id<DDProtocol> p = [[DDProtocolObject alloc] init];
     [p protocolInstanceTest];
+    
+    DDLog(@"Singleton");
+    [[NSNotificationCenter defaultCenter] addObserverForName:DDTestManagerTestNotification object:nil queue:nil usingBlock:^(NSNotification * _Nonnull note) {
+        DDLog(@"DDTestDemo recieve %@", DDTestManagerTestNotification);
+    }];
+    [[DDTestManager sharedInstance] test];
     
     DDLog(@"library");
 #if DemoTarget==1

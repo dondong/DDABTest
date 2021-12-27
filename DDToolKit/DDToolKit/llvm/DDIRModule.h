@@ -9,6 +9,7 @@
 #import "DDIRStringVariable.h"
 #import "DDIRObjCClass.h"
 #import "DDIRFunction.h"
+#import "DDIRChangeItem.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -44,16 +45,15 @@ static NSString * const DDIRReplaceResultFunctionKey       = @"DDIRReplaceResult
 /*
  change
  */
-typedef NSDictionary<NSString *, NSDictionary<NSString *, NSString *> *> DDIRReplaceResult;
 // function
 - (BOOL)replaceFunction:(nonnull NSString *)funName withNewComponentName:(nonnull NSString *)newName;
 // class
 - (void)addEmptyClass:(nonnull NSString *)className;
-- (nullable DDIRReplaceResult *)replaceObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName;
+- (nullable NSArray<DDIRChangeItem *> *)replaceObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName;
 - (BOOL)moveClass:(nonnull NSString *)className to:(nonnull NSString *)section;
 // category
 - (void)addEmptyCategory:(nonnull NSString *)categoryName toClass:(nonnull NSString *)className;
-- (nullable DDIRReplaceResult *)replaceCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName;
+- (nullable NSArray<DDIRChangeItem *> *)replaceCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className withNewComponentName:(nonnull NSString *)newName;
 - (BOOL)moveCategory:(nonnull NSString *)categoryName forObjcClass:(nonnull NSString *)className to:(nonnull NSString *)section;
 // protocol
 - (BOOL)replaceObjcProtocol:(nonnull NSString *)protocolName withNewComponentName:(nonnull NSString *)newName;

@@ -43,7 +43,7 @@
         path.path = lib.headerPath;
         DDIRModule *headerModule = [DDIRModule moduleFromPath:lib.headerPath];
         [headerModule executeChangesWithBlock:^(DDIRModule * _Nullable module) {
-            path.declareChangedRecord = [module extractObjcDataAndFunctionDeclaration];;
+            path.declareChangedRecord = [module extractObjcDataAndFunctionDeclaration];
         }];
         for (NSString *p in mergePathList) {
             DDIRModule *module  = [DDIRModule moduleFromPath:p];
@@ -81,12 +81,12 @@
 #endif
     }
     for (NSString *key in changeRecords.allKeys) {
-        NSDictionary *record = [changeRecords objectForKey:key];
+        NSArray *items = [changeRecords objectForKey:key];
         DDStaticLibrary *lib = [libDic objectForKey:key];
         for (NSString *p in lib.mergePathList) {
             DDIRModule *module  = [DDIRModule moduleFromPath:p];
             [module executeChangesWithBlock:^(DDIRModule * _Nullable m) {
-                [m synchronzieReplaceResult:record];
+                [m synchronzieChangees:items];
             }];
         }
         lib.mergePathList = nil;
@@ -135,8 +135,8 @@
 
 + (nonnull NSString *)_targetForArch:(nonnull NSString *)arch
 {
-    NSDictionary *dic = @{@"armv7":  @"armv7-apple-ios10.0.0",
-                          @"arm64":  @"arm64-apple-ios10.0.0",
+    NSDictionary *dic = @{@"armv7":  @"armv7-apple-ios13.0.0",
+                          @"arm64":  @"arm64-apple-ios13.0.0",
                           @"i386":   @"i386-apple-macosx10.14",
                           @"x86_64": @"x86_64-apple-macosx10.14"};
     return [dic objectForKey:arch];

@@ -87,6 +87,14 @@
                             _updateCategory(map_ptr, catList, categoryCount);
                         }
                     }
+                } else if (0 == strcmp(segment.sections[j].sect_name, [DDInitFunctionSection cStringUsingEncoding:NSUTF8StringEncoding])) {
+                    uintptr_t *bast_ptr = (uintptr_t *)segment.sections[j].addr;
+                    int func_count = (int)segment.sections[j].size / sizeof(uintptr_t);
+                    for (int k = 0; k < func_count; ++k) {
+                        typedef void *(my_func)(void);
+                        my_func* fun_ptr = (my_func *)(char *)*(bast_ptr + k);
+                        fun_ptr();
+                    }
                 }
             }
         }

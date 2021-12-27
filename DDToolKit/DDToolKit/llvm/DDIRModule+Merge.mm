@@ -7,6 +7,7 @@
 
 #import "DDIRModule+Merge.h"
 #import "DDIRModule+Private.h"
+#import "DDIRChangeItem+Perform.h"
 #import "DDCommonDefine.h"
 #import "DDIRUtil.h"
 #import "DDIRUtil+Objc.h"
@@ -51,9 +52,8 @@ using namespace llvm;
 {
     NSMutableDictionary *changeRecords = [NSMutableDictionary dictionary];
     NSMutableArray<DDIRModule *> *moduleList = [NSMutableArray array];
-    for (DDIRModule *module in moudules) {
-        DDIRModule *m = [DDIRModule moduleFromPath:module.path];
-        [moduleList addObject:m];
+    for (DDIRModulePath *m in moudules) {
+        [moduleList addObject:[DDIRModule moduleFromModulePath:m]];
     }
     NSMutableDictionary *mergeConfiguration = [NSMutableDictionary dictionary];
     NSMutableDictionary *mergeClassList     = [NSMutableDictionary dictionary];
@@ -68,9 +68,8 @@ using namespace llvm;
     [mergeConfiguration setObject:changeRecords forKey:ConfigurationKey_ChangeRecord];
     for (int i = 0; i < moduleList.count; ++i) {
         DDIRModule *module = moduleList[i];
-        NSMutableDictionary *changeFunRecords = [NSMutableDictionary dictionary];
-        NSMutableDictionary *changeVarRecords = [NSMutableDictionary dictionary];
-        [changeRecords setObject:@{DDIRReplaceResultFunctionKey: changeFunRecords, DDIRReplaceResultGlobalVariableKey: changeVarRecords} forKey:module.path];
+        NSMutableArray *changeitems = [NSMutableArray array];
+        [changeRecords setObject:changeitems forKey:module.path];
         [mergeConfiguration setObject:module.path forKey:@(i)];
         [mergeConfiguration setObject:[NSMutableArray array] forKey:ConfigurationKey_Class(i)];
         [mergeConfiguration setObject:[NSMutableArray array] forKey:ConfigurationKey_Category(i)];
@@ -130,6 +129,7 @@ using namespace llvm;
         for (DDIRGlobalVariable *v in data.staticVariableList) {
             if (nil == [mergeStaticVarList objectForKey:v.name]) {
                 [mergeStaticVarList setObject:@[[DDIRModuleMergeInfo infoWithTarget:v.name index:i]].mutableCopy forKey:v.name];
+                [mergeConfiguration setObject:module.path forKey:v.name];   // record module of base variable
             } else {
                 NSString *newName = [v.name stringByAppendingString:appendStr];
                 [[mergeStaticVarList objectForKey:v.name] addObject:[DDIRModuleMergeInfo infoWithTarget:newName index:i]];
@@ -141,14 +141,12 @@ using namespace llvm;
                 [m replaceObjcProtocol:arr[0] withNewComponentName:arr[1]];
             }
             for (NSArray *arr in categoryChangeList) {
-                NSDictionary *r = [m replaceCategory:arr[1] forObjcClass:arr[0] withNewComponentName:arr[2]];
-                [changeFunRecords addEntriesFromDictionary:[r objectForKey:DDIRReplaceResultFunctionKey]];
-                [changeVarRecords addEntriesFromDictionary:[r objectForKey:DDIRReplaceResultGlobalVariableKey]];
+                NSArray *r = [m replaceCategory:arr[1] forObjcClass:arr[0] withNewComponentName:arr[2]];
+                [changeitems addObjectsFromArray:r];
             }
             for (NSArray *arr in classChangeList) {
-                NSDictionary *r = [m replaceObjcClass:arr[0] withNewComponentName:arr[1]];
-                [changeFunRecords addEntriesFromDictionary:[r objectForKey:DDIRReplaceResultFunctionKey]];
-                [changeVarRecords addEntriesFromDictionary:[r objectForKey:DDIRReplaceResultGlobalVariableKey]];
+                NSArray *r = [m replaceObjcClass:arr[0] withNewComponentName:arr[1]];
+                [changeitems addObjectsFromArray:r];
             }
             // keep all function, avoid not referenced declare function be deleted
             std::vector<Constant *> functionList;
@@ -164,23 +162,46 @@ using namespace llvm;
                                ModuleReferenceFunctions);
             for (NSArray *arr in functionChangeList) {
                 [m replaceFunction:arr[0] withNewComponentName:arr[1]];
-                [changeFunRecords setObject:arr[1] forKey:arr[0]];
+                [changeitems addObject:[DDIRNameChangeItem functionItemWithTargetName:arr[0] newName:arr[1]]];
             }
             // keep all static variable, avoid not referenced external variable be deleted
             std::vector<Constant *> staticVarList;
             for (DDIRGlobalVariable *variable in data.staticVariableList) {
                 GlobalVariable *var = m.module->getGlobalVariable([variable.name cStringUsingEncoding:NSUTF8StringEncoding]);
-                staticVarList.push_back(ConstantExpr::getBitCast(var, Type::getInt8PtrTy(m.module->getContext())));
+//                staticVarList.push_back(ConstantExpr::getBitCast(var, Type::getInt8PtrTy(m.module->getContext())));
+                if ([DDIRUtil isExternalStaticVariable:var]) {
+//                    if (var->getInitializer()->getType()->isPointerTy()) {
+//                        GlobalVariable *valueVar = dyn_cast<GlobalVariable>(var->getInitializer()->getOperand(0));
+//                        NSString *valueName = [NSString stringWithFormat:@"%s", valueVar->getName().data()];
+//                        if (false == [self _isSpecailName:valueName]) {
+//                            NSString * specialName = [self _getSpecialName];
+//                            GlobalVariable *newValueVar = new GlobalVariable(*m.module,
+//                                                                             valueVar->getInitializer()->getType(),
+//                                                                             valueVar->isConstant(),
+//                                                                             GlobalValue::ExternalLinkage,
+//                                                                             nullptr,
+//                                                                             [specialName cStringUsingEncoding:NSUTF8StringEncoding]);
+//                            [DDIRUtil replaceGlobalVariable:valueVar with:newValueVar];
+//                            [DDIRUtil removeGlobalValue:valueVar inModule:m.module];
+//                            [changeitems addObject:[DDIRStaticVariableChangeItem globalVariableItemWithTargetName:variable.name valueName:specialName]];
+//                        } else {
+//                            [changeitems addObject:[DDIRRemoveDefineChangeItem globalVariableItemWithTargetName:variable.name]];
+//                        }
+//                    } else {
+//                        [changeitems addObject:[DDIRRemoveDefineChangeItem globalVariableItemWithTargetName:variable.name]];
+//                    }
+                    [changeitems addObject:[DDIRRemoveDefineChangeItem globalVariableItemWithTargetName:variable.name]];
+                }
             }
-            new GlobalVariable(*m.module,
-                               ArrayType::get(Type::getInt8PtrTy(m.module->getContext()), functionList.size()),
-                               false,
-                               GlobalValue::AppendingLinkage,
-                               ConstantArray::get(ArrayType::get(Type::getInt8PtrTy(m.module->getContext()), functionList.size()), functionList),
-                               ModuleReferenceVarables);
+//            new GlobalVariable(*m.module,
+//                               ArrayType::get(Type::getInt8PtrTy(m.module->getContext()), staticVarList.size()),
+//                               false,
+//                               GlobalValue::AppendingLinkage,
+//                               ConstantArray::get(ArrayType::get(Type::getInt8PtrTy(m.module->getContext()), staticVarList.size()), staticVarList),
+//                               ModuleReferenceVarables);
             for (NSArray *arr in staticVarChangeList) {
                 m.module->getGlobalVariable([arr[0] cStringUsingEncoding:NSUTF8StringEncoding])->setName([arr[1] cStringUsingEncoding:NSUTF8StringEncoding]);
-                [changeVarRecords setObject:arr[1] forKey:arr[0]];
+                [changeitems addObject:[DDIRNameChangeItem globalVariableItemWithTargetName:arr[0] newName:arr[1]]];
             }
         }];
     }
@@ -193,8 +214,12 @@ using namespace llvm;
     DDIRModule *module = [DDIRModule moduleFromPath:outputPath];
     
     [module executeChangesWithBlock:^(DDIRModule * _Nullable m) {
-        m.module->getGlobalVariable(ModuleReferenceFunctions)->eraseFromParent();
-        m.module->getGlobalVariable(ModuleReferenceVarables)->eraseFromParent();
+        GlobalVariable *funVar =  m.module->getGlobalVariable(ModuleReferenceFunctions);
+        if (nullptr != funVar) {
+            funVar->eraseFromParent();
+        }
+//        m.module->getGlobalVariable(ModuleReferenceFunctions)->eraseFromParent();
+//        m.module->getGlobalVariable(ModuleReferenceVarables)->eraseFromParent();
         // protocol
         for (NSString *name in mergeProtocolList.allKeys) {
             NSArray *nameList = [mergeProtocolList objectForKey:name];
@@ -268,6 +293,22 @@ using namespace llvm;
             }
         }
         [m _handleInitFunctionWithControlVariable:control configuration:mergeConfiguration];
+        // static variable
+        Function *varFun = [m _mergeStaticVariables:mergeStaticVarList withControl:control count:pathes.count configuration:mergeConfiguration];
+        std::vector<Constant *> varFunList;
+        varFunList.push_back(ConstantExpr::getBitCast(varFun, Type::getInt8PtrTy(m.module->getContext())));
+        GlobalVariable *varFunLabel = new GlobalVariable(*m.module,
+                                                         ArrayType::get(Type::getInt8PtrTy(m.module->getContext()), 1),
+                                                         false,
+                                                         GlobalValue::InternalLinkage,
+                                                         ConstantArray::get(ArrayType::get(Type::getInt8PtrTy(m.module->getContext()), 1), varFunList),
+                                                         "dd_init_function_label");
+        varFunLabel->setSection([[NSString stringWithFormat:@"__DATA,%@,regular,no_dead_strip", DDInitFunctionSection] cStringUsingEncoding:NSUTF8StringEncoding]);
+        varFunLabel->setAlignment(MaybeAlign(8));
+        [DDIRUtil insertValue:ConstantExpr::getBitCast(cast<Constant>(varFunLabel), Type::getInt8PtrTy(m.module->getContext()))
+            toGlobalArray:[DDIRUtil getLlvmCompilerUsedInModule:m.module]
+                       at:0
+                 inModule:m.module];
     }];
     return changeRecords;
 }
@@ -320,27 +361,27 @@ using namespace llvm;
             }
         }
     }
-    std::vector<GlobalVariable *> staticVariableList;
-    for (GlobalVariable &var : self.module->getGlobalList()) {
-        if (true == [DDIRUtil isExternalStaticVariable:std::addressof(var)]) {
-            staticVariableList.push_back(std::addressof(var));
-        }
-    }
-    NSMutableArray *changeVariableList = [NSMutableArray array];
-    [changeRecords setObject:changeVariableList forKey:DDIRReplaceResultGlobalVariableKey];
-    for (GlobalVariable *var : staticVariableList) {
-        NSString *name = [NSString stringWithFormat:@"%s", var->getName().data()];
-        var->setName("temp_var");
-        GlobalVariable *newVar = new GlobalVariable(*self.module,
-                                                    var->getInitializer()->getType(),
-                                                    true,
-                                                    GlobalValue::ExternalLinkage,
-                                                    nullptr,
-                                                    [name cStringUsingEncoding:NSUTF8StringEncoding]);
-        [DDIRUtil replaceGlobalVariable:var with:newVar];
-        var->eraseFromParent();
-        [changeVariableList addObject:name];
-    }
+//    std::vector<GlobalVariable *> staticVariableList;
+//    for (GlobalVariable &var : self.module->getGlobalList()) {
+//        if (true == [DDIRUtil isExternalStaticVariable:std::addressof(var)]) {
+//            staticVariableList.push_back(std::addressof(var));
+//        }
+//    }
+//    NSMutableArray *changeVariableList = [NSMutableArray array];
+//    [changeRecords setObject:changeVariableList forKey:DDIRReplaceResultGlobalVariableKey];
+//    for (GlobalVariable *var : staticVariableList) {
+//        NSString *name = [NSString stringWithFormat:@"%s", var->getName().data()];
+//        var->setName("temp_var");
+//        GlobalVariable *newVar = new GlobalVariable(*self.module,
+//                                                    var->getInitializer()->getType(),
+//                                                    true,
+//                                                    GlobalValue::ExternalLinkage,
+//                                                    nullptr,
+//                                                    [name cStringUsingEncoding:NSUTF8StringEncoding]);
+//        [DDIRUtil replaceGlobalVariable:var with:newVar];
+//        var->eraseFromParent();
+//        [changeVariableList addObject:name];
+//    }
     while (self.module->named_metadata_begin() != self.module->named_metadata_end()) {
         auto node = self.module->named_metadata_begin();
         self.module->eraseNamedMetadata(std::addressof(*node));
@@ -538,24 +579,27 @@ using namespace llvm;
     return ret;
 }
 
-- (void)synchronzieReplaceResult:(nonnull DDIRReplaceResult *)result
+- (void)synchronzieChangees:(nonnull NSArray<DDIRChangeItem *> *)items
 {
-    NSDictionary *funRecord = [result objectForKey:DDIRReplaceResultFunctionKey];
-    NSDictionary *varRecord = [result objectForKey:DDIRReplaceResultGlobalVariableKey];
-    for (GlobalVariable &var : self.module->getGlobalList()) {
-        NSString *name = [NSString stringWithFormat:@"%s", var.getName().data()];
-        NSString *newName = [varRecord objectForKey:name];
-        if (nil != newName && !([name hasPrefix:@"OBJC_CLASS_$_"] || [name hasPrefix:@"OBJC_METACLASS_$_"])) {
-            var.setName([newName cStringUsingEncoding:NSUTF8StringEncoding]);
-        }
+    for (DDIRChangeItem *it in items) {
+        [it performChange:self.module];
     }
-    for (Function &fun : self.module->getFunctionList()) {
-        NSString *name = [NSString stringWithFormat:@"%s", fun.getName().data()];
-        NSString *newName = [funRecord objectForKey:name];
-        if (nil != newName) {
-            fun.setName([newName cStringUsingEncoding:NSUTF8StringEncoding]);
-        }
-    }
+//    NSDictionary *funRecord = [result objectForKey:DDIRReplaceResultFunctionKey];
+//    NSDictionary *varRecord = [result objectForKey:DDIRReplaceResultGlobalVariableKey];
+//    for (GlobalVariable &var : self.module->getGlobalList()) {
+//        NSString *name = [NSString stringWithFormat:@"%s", var.getName().data()];
+//        NSString *newName = [varRecord objectForKey:name];
+//        if (nil != newName && !([name hasPrefix:@"OBJC_CLASS_$_"] || [name hasPrefix:@"OBJC_METACLASS_$_"])) {
+//            var.setName([newName cStringUsingEncoding:NSUTF8StringEncoding]);
+//        }
+//    }
+//    for (Function &fun : self.module->getFunctionList()) {
+//        NSString *name = [NSString stringWithFormat:@"%s", fun.getName().data()];
+//        NSString *newName = [funRecord objectForKey:name];
+//        if (nil != newName) {
+//            fun.setName([newName cStringUsingEncoding:NSUTF8StringEncoding]);
+//        }
+//    }
 }
 
 #pragma mark private
@@ -1533,7 +1577,7 @@ public:
     assert(nil != key);
     NSMutableDictionary *record = [configuration objectForKey:ConfigurationKey_ChangeRecord];
     NSString *newFunctionName = [infos[0].target stringByAppendingFormat:@"_%lu", GetAppendValue(key)];
-    [[[record objectForKey:key] objectForKey:DDIRReplaceResultFunctionKey] setObject:newFunctionName forKey:infos[0].target];
+    [[record objectForKey:key] addObject:[DDIRNameChangeItem functionItemWithTargetName:infos[0].target newName:newFunctionName]];
     functionList[0]->setName([newFunctionName cStringUsingEncoding:NSUTF8StringEncoding]);
     
     Function *fun = Function::Create(functionList[0]->getFunctionType(), GlobalValue::InternalLinkage, [infos[0].target cStringUsingEncoding:NSUTF8StringEncoding], self.module);
@@ -1626,6 +1670,62 @@ public:
     baseFun->clearMetadata();
     
     return baseFun;
+}
+     
+- (Function *)_mergeStaticVariables:(nonnull NSDictionary<NSString *, NSArray<DDIRModuleMergeInfo *> *> *)dic withControl:(GlobalVariable *)control count:(NSUInteger)count configuration:(nonnull NSMutableDictionary *)configuration
+{
+    __block NSMutableArray<NSMutableArray<NSArray<NSString *> *> *> *staticVarList = [NSMutableArray arrayWithCapacity:count];
+    for (int i = 0; i < count; ++i) {
+        [staticVarList addObject:[NSMutableArray array]];
+    }
+    [dic enumerateKeysAndObjectsUsingBlock:^(NSString * _Nonnull name, NSArray<DDIRModuleMergeInfo *> * _Nonnull infoList, BOOL * _Nonnull stop) {
+        if (infoList.count > 1) {
+            for (DDIRModuleMergeInfo *info in infoList) {
+                [[staticVarList objectAtIndex:info.index] addObject:@[name, info.target]];
+            }
+        }
+    }];
+    Function *fun = Function::Create(FunctionType::get(Type::getVoidTy(self.module->getContext()), false), GlobalValue::InternalLinkage, "dd_static_variable_function", self.module);
+    BasicBlock *baseBlock = BasicBlock::Create(self.module->getContext(), "", fun);
+    IRBuilder<> builder(baseBlock);
+    BasicBlock *defaultBlock = BasicBlock::Create(self.module->getContext(), "", fun);
+    IRBuilder<> defalultBuilder(defaultBlock);
+    defalultBuilder.CreateRetVoid();
+    LoadInst *loadInst = builder.CreateLoad(control->getInitializer()->getType(), control);
+    SwitchInst * switchInst = builder.CreateSwitch(builder.CreateExtractValue(loadInst, 1),
+                                                   defaultBlock,
+                                                   (unsigned int)count);
+    for (int i = 0; i < count; ++i) {
+        BasicBlock *block = BasicBlock::Create(self.module->getContext(), "", fun);
+        IRBuilder<> builder(block);
+        for (NSArray<NSString *> *list in [staticVarList objectAtIndex:i]) {
+            NSString *srcName = list[0];
+            NSString *dstName = list[1];
+            if ([srcName isEqualToString:dstName]) {
+                NSString *key = [configuration objectForKey:srcName];
+                assert(nil != key);
+                NSMutableDictionary *record = [configuration objectForKey:ConfigurationKey_ChangeRecord];
+                dstName = [srcName stringByAppendingFormat:@"%lu", GetAppendValue(key)];
+                [[record objectForKey:key] addObject:[DDIRNameChangeItem functionItemWithTargetName:dstName newName:srcName]];
+                GlobalVariable *var = self.module->getGlobalVariable([srcName cStringUsingEncoding:NSUTF8StringEncoding]);
+                var->setName([dstName cStringUsingEncoding:NSUTF8StringEncoding]);
+                new GlobalVariable(*self.module,
+                                   dyn_cast<PointerType>(var->getType())->getElementType(),
+                                   false,
+                                   GlobalValue::ExternalLinkage,
+                                   var->getInitializer(),
+                                   [srcName cStringUsingEncoding:NSUTF8StringEncoding]);
+            }
+            GlobalVariable *srcVar = self.module->getGlobalVariable([srcName cStringUsingEncoding:NSUTF8StringEncoding]);
+            GlobalVariable *dstVar = self.module->getGlobalVariable([dstName cStringUsingEncoding:NSUTF8StringEncoding]);
+            LoadInst *load = builder.CreateLoad(dyn_cast<PointerType>(dstVar->getType())->getElementType(), dstVar);
+            Value *bitcast = builder.CreateBitCast(load, dyn_cast<PointerType>(srcVar->getType())->getElementType());
+            builder.CreateStore(bitcast, srcVar);
+        }
+        builder.CreateRetVoid();
+        switchInst->addCase(ConstantInt::get(Type::getInt32Ty(self.module->getContext()), i), block);
+    }
+    return fun;
 }
 
 static bool _isObjcClassHasLoad(GlobalVariable *cls)
@@ -2012,6 +2112,17 @@ static GlobalVariable *_mergeObjcList(GlobalVariable *dst, int dIndex, GlobalVar
     }
     datas.push_back(ConstantExpr::getBitCast(fun, Type::getInt8PtrTy(self.module->getContext())));
     return dyn_cast<ConstantStruct>(ConstantStruct::get(methodType, datas));
+}
+
+#pragma mark Util
++ (nonnull NSString *)_getSpecialName
+{
+    return [NSString stringWithFormat:@"dd_special_name_%u", arc4random()];
+}
+
++ (bool)_isSpecailName:(nonnull NSString *)name
+{
+    return [name hasPrefix:@"dd_special_name_"];
 }
 @end
 

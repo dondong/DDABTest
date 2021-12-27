@@ -44,6 +44,8 @@
 		A3C7442C2733F937007AD417 /* DDTestLoad.m in Sources */ = {isa = PBXBuildFile; fileRef = A3C7442A2733F937007AD417 /* DDTestLoad.m */; };
 		A3C7442F2733F9D1007AD417 /* NSString+Load.m in Sources */ = {isa = PBXBuildFile; fileRef = A3C7442E2733F9D1007AD417 /* NSString+Load.m */; };
 		A3C744302733F9D1007AD417 /* NSString+Load.m in Sources */ = {isa = PBXBuildFile; fileRef = A3C7442E2733F9D1007AD417 /* NSString+Load.m */; };
+		A3C7F58B2779A1A50004A0F6 /* DDTestManager.m in Sources */ = {isa = PBXBuildFile; fileRef = A3C420112771A75B0037AE8F /* DDTestManager.m */; };
+		A3C7F58C2779A1A60004A0F6 /* DDTestManager.m in Sources */ = {isa = PBXBuildFile; fileRef = A3C420112771A75B0037AE8F /* DDTestManager.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -118,6 +120,8 @@
 		A3987F6F2726A6A600CBA671 /* DDProtocolChangeObject.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = DDProtocolChangeObject.m; sourceTree = "<group>"; };
 		A3987F722726A8BD00CBA671 /* DDProtocolSystemObject.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DDProtocolSystemObject.h; sourceTree = "<group>"; };
 		A3987F732726A8BD00CBA671 /* DDProtocolSystemObject.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = DDProtocolSystemObject.m; sourceTree = "<group>"; };
+		A3C420102771A75B0037AE8F /* DDTestManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DDTestManager.h; sourceTree = "<group>"; };
+		A3C420112771A75B0037AE8F /* DDTestManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = DDTestManager.m; sourceTree = "<group>"; };
 		A3C744292733F937007AD417 /* DDTestLoad.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DDTestLoad.h; sourceTree = "<group>"; };
 		A3C7442A2733F937007AD417 /* DDTestLoad.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = DDTestLoad.m; sourceTree = "<group>"; };
 		A3C7442D2733F9D1007AD417 /* NSString+Load.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "NSString+Load.h"; sourceTree = "<group>"; };
@@ -245,6 +249,8 @@
 		A39449C226FAD37F0082ADE0 /* Singleton */ = {
 			isa = PBXGroup;
 			children = (
+				A3C420102771A75B0037AE8F /* DDTestManager.h */,
+				A3C420112771A75B0037AE8F /* DDTestManager.m */,
 			);
 			path = Singleton;
 			sourceTree = "<group>";
@@ -403,6 +409,7 @@
 				A3987F702726A6A600CBA671 /* DDProtocolChangeObject.m in Sources */,
 				A3871F0E26E5B09400980895 /* DDTestObject.m in Sources */,
 				A39449CC26FADC4B0082ADE0 /* DDTestChildObjectB.m in Sources */,
+				A3C7F58C2779A1A60004A0F6 /* DDTestManager.m in Sources */,
 				A39449C826FADC3A0082ADE0 /* DDTestChildObjectA.m in Sources */,
 				A3987F6627265A2600CBA671 /* DDProtocolObject.m in Sources */,
 				A39449D026FADDFF0082ADE0 /* DDTestObject+Category.m in Sources */,
@@ -426,6 +433,7 @@
 				A3987F712726A6A600CBA671 /* DDProtocolChangeObject.m in Sources */,
 				A39449B826FACA180082ADE0 /* DDTestSuperObject.m in Sources */,
 				A39449D526FADF190082ADE0 /* NSObject+Category.m in Sources */,
+				A3C7F58B2779A1A50004A0F6 /* DDTestManager.m in Sources */,
 				A38EDB2E26FC51840002DAA0 /* DDEmpty.m in Sources */,
 				A3987F6727265A2600CBA671 /* DDProtocolObject.m in Sources */,
 				A39449D126FADDFF0082ADE0 /* DDTestObject+Category.m in Sources */,

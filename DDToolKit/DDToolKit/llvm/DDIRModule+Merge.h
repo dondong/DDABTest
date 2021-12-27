@@ -6,6 +6,7 @@
 //
 
 #import "DDIRModule.h"
+#import "DDIRChangeItem.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -23,14 +24,14 @@ typedef NSDictionary<NSString *, NSArray<NSString *> *> DDIRChangeDeclareRecord;
 @end
 
 @interface DDIRModule(Merge)
-typedef NSDictionary<NSString *, DDIRReplaceResult *> DDIRChangeReplaceRecord;
+typedef NSDictionary<NSString *, NSArray<DDIRChangeItem *> *> DDIRChangeReplaceRecord;
 + (nonnull DDIRChangeReplaceRecord *)mergeIRFiles:(nonnull NSArray<NSString *> *)pathes withControlId:(UInt32)controlId toIRFile:(nonnull NSString *)outputPath;
 + (nonnull DDIRChangeReplaceRecord *)mergeIRModules:(nonnull NSArray<DDIRModulePath *> *)moudules withControlId:(UInt32)controlId toIRFile:(nonnull NSString *)outputPath;
 // change
 - (nonnull DDIRChangeDeclareRecord *)extractObjcDataAndFunctionDeclaration;
 - (void)remeveObjcData;
 - (void)mergeObjcData;
-- (void)synchronzieReplaceResult:(nonnull DDIRReplaceResult *)result;
+- (void)synchronzieChangees:(nonnull NSArray<DDIRChangeItem *> *)items;
 @end
 
 NS_ASSUME_NONNULL_END

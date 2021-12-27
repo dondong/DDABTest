@@ -23,6 +23,7 @@
 		A3A5F365272144B400326770 /* DDIRModule+Merge.mm in Sources */ = {isa = PBXBuildFile; fileRef = A3A5F364272144B400326770 /* DDIRModule+Merge.mm */; };
 		A3B8DC65271D77BC00E7C76B /* DDIRUtil+Objc.mm in Sources */ = {isa = PBXBuildFile; fileRef = A3B8DC64271D77BC00E7C76B /* DDIRUtil+Objc.mm */; };
 		A3E29F4927574837008FFF60 /* DDStaticLibrary+Merge.m in Sources */ = {isa = PBXBuildFile; fileRef = A3E29F4827574837008FFF60 /* DDStaticLibrary+Merge.m */; };
+		A3EA896627756D380031835A /* DDIRChangeItem.mm in Sources */ = {isa = PBXBuildFile; fileRef = A3EA896527756D380031835A /* DDIRChangeItem.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -70,6 +71,9 @@
 		A3E29F4727574837008FFF60 /* DDStaticLibrary+Merge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "DDStaticLibrary+Merge.h"; sourceTree = "<group>"; };
 		A3E29F4827574837008FFF60 /* DDStaticLibrary+Merge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "DDStaticLibrary+Merge.m"; sourceTree = "<group>"; };
 		A3E29F4A2757815A008FFF60 /* DDStaticLibrary+Private.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "DDStaticLibrary+Private.h"; sourceTree = "<group>"; };
+		A3EA896427756D380031835A /* DDIRChangeItem.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DDIRChangeItem.h; sourceTree = "<group>"; };
+		A3EA896527756D380031835A /* DDIRChangeItem.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = DDIRChangeItem.mm; sourceTree = "<group>"; };
+		A3EA89672775A61E0031835A /* DDIRChangeItem+Perform.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "DDIRChangeItem+Perform.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -142,6 +146,9 @@
 				A30C5CEA26F332D600227E78 /* DDIRUtil.mm */,
 				A3B8DC63271D77BC00E7C76B /* DDIRUtil+Objc.h */,
 				A3B8DC64271D77BC00E7C76B /* DDIRUtil+Objc.mm */,
+				A3EA896427756D380031835A /* DDIRChangeItem.h */,
+				A3EA896527756D380031835A /* DDIRChangeItem.mm */,
+				A3EA89672775A61E0031835A /* DDIRChangeItem+Perform.h */,
 			);
 			path = llvm;
 			sourceTree = "<group>";
@@ -222,6 +229,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A3EA896627756D380031835A /* DDIRChangeItem.mm in Sources */,
 				A30C5CF726F332D600227E78 /* DDIRUtil.mm in Sources */,
 				A30C5CF426F332D600227E78 /* DDABTestTool.m in Sources */,
 				A3E29F4927574837008FFF60 /* DDStaticLibrary+Merge.m in Sources */,

@@ -60,6 +60,7 @@ struct dd_category_map_list_t {
 // macho
 #define DDDefaultClsMapSection   @"__dddd_clsmap"
 #define DDDefaultCatMapSection   @"__dddd_catmap"
-#define DDControlSection @"__dddd_control"
+#define DDControlSection         @"__dddd_control"
+#define DDInitFunctionSection    @"__dddd_initfun"
 
 #endif /* DDCommonDefine_h */
