@@ -10,7 +10,7 @@
 NS_ASSUME_NONNULL_BEGIN
 
 extern NSString * const DDTestManagerTestNotification;
-//extern NSString * DDTestManagerTestString;
+extern NSString * DDTestManagerTestString;
 
 @interface DDTestManager : NSObject
 + (instancetype)sharedInstance;

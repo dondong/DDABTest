@@ -86,7 +86,7 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
 + (bool)isExternalStaticVariable:(llvm::GlobalVariable * _Nonnull)var
 {
     return (GlobalValue::ExternalLinkage == var->getLinkage() &&
-            true == var->isConstant() &&
+//            true == var->isConstant() &&
             true == var->hasInitializer() &&
             false == var->hasSection());
 }
@@ -94,7 +94,7 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
 + (bool)isExternalStaticVariableDeclaration:(llvm::GlobalVariable * _Nonnull)var
 {
     return (GlobalValue::ExternalLinkage == var->getLinkage() &&
-            true == var->isConstant() &&
+//            true == var->isConstant() &&
             false == var->hasSection());
 }
 

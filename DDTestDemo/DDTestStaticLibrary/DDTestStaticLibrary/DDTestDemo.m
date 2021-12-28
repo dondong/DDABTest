@@ -54,7 +54,7 @@
     
     DDLog(@"Singleton");
     [[NSNotificationCenter defaultCenter] addObserverForName:DDTestManagerTestNotification object:nil queue:nil usingBlock:^(NSNotification * _Nonnull note) {
-        DDLog(@"DDTestDemo recieve %@", DDTestManagerTestNotification);
+        DDLog(@"DDTestDemo recieve %@ %@", DDTestManagerTestNotification, DDTestManagerTestString);
     }];
     [[DDTestManager sharedInstance] test];
     

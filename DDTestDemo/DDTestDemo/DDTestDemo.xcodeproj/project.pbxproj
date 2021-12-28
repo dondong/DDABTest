@@ -17,8 +17,8 @@
 		A3944A4826FB45EE0082ADE0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A3944A4726FB45EE0082ADE0 /* Assets.xcassets */; };
 		A3944A4B26FB45EE0082ADE0 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A3944A4926FB45EE0082ADE0 /* LaunchScreen.storyboard */; };
 		A3944A4E26FB45EE0082ADE0 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = A3944A4D26FB45EE0082ADE0 /* main.m */; };
-		A3B596C7270096B300508419 /* libDDTestStaticLibrary.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A3B596C6270096B300508419 /* libDDTestStaticLibrary.a */; };
 		A3B89FB22769E01A00966E17 /* libAFNetworking.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A3B89FB12769E01A00966E17 /* libAFNetworking.a */; };
+		A3FA4F45277AAE9800A4DE7D /* libDDTestStaticLibrary.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A3B596C6270096B300508419 /* libDDTestStaticLibrary.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -39,6 +39,7 @@
 		A3944A4D26FB45EE0082ADE0 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		A3B596C6270096B300508419 /* libDDTestStaticLibrary.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libDDTestStaticLibrary.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		A3B89FB12769E01A00966E17 /* libAFNetworking.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libAFNetworking.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		A3FA4F58277AC2DD00A4DE7D /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -47,7 +48,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A38EDB2D26FC50610002DAA0 /* libDDABTest.a in Frameworks */,
-				A3B596C7270096B300508419 /* libDDTestStaticLibrary.a in Frameworks */,
+				A3FA4F45277AAE9800A4DE7D /* libDDTestStaticLibrary.a in Frameworks */,
 				A3B89FB22769E01A00966E17 /* libAFNetworking.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -69,6 +70,7 @@
 			isa = PBXGroup;
 			children = (
 				A3944A3A26FB45ED0082ADE0 /* DDTestDemo */,
+				A3FA4F57277AC2DD00A4DE7D /* DDToolKit */,
 				A3944A3926FB45ED0082ADE0 /* Products */,
 				A374FCB026FC24E80015D54D /* Frameworks */,
 			);
@@ -102,6 +104,14 @@
 			path = DDTestDemo;
 			sourceTree = "<group>";
 		};
+		A3FA4F57277AC2DD00A4DE7D /* DDToolKit */ = {
+			isa = PBXGroup;
+			children = (
+				A3FA4F58277AC2DD00A4DE7D /* main.m */,
+			);
+			path = DDToolKit;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -109,7 +119,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = A3944A6726FB45EE0082ADE0 /* Build configuration list for PBXNativeTarget "DDTestDemo" */;
 			buildPhases = (
-				A3B89FB32769E3EF00966E17 /* ShellScript */,
 				A3944A3426FB45ED0082ADE0 /* Sources */,
 				A3944A3526FB45ED0082ADE0 /* Frameworks */,
 				A3944A3626FB45ED0082ADE0 /* Resources */,
@@ -168,26 +177,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		A3B89FB32769E3EF00966E17 /* ShellScript */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nif [ ! -f \"../DDToolKit\" ]; then\n    ARCH=`uname -m`\n    xcodebuild archive -project \"../../DDToolKit/DDToolKit.xcodeproj\" -scheme \"DDToolKit\" -arch $ARCH -configuration release -archivePath DDToolKit.xcarchive\n    mv \"DDToolKit.xcarchive/Products/usr/local/bin/DDToolKit\" \"../DDToolKit\"\n    rm -r DDToolKit.xcarchive\nfi\n";
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A3944A3426FB45ED0082ADE0 /* Sources */ = {

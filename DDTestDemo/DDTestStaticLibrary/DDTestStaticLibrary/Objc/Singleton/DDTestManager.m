@@ -13,7 +13,7 @@ NSString * const DDTestManagerTestNotification = @"DDTestManagerTestNotification
 #else
 NSString * const DDTestManagerTestNotification = @"DDTestManagerTestNotification_B";
 #endif
-//NSString * DDTestManagerTestString = nil;
+NSString * DDTestManagerTestString = nil;
 
 + (instancetype)sharedInstance
 {
@@ -29,7 +29,7 @@ NSString * const DDTestManagerTestNotification = @"DDTestManagerTestNotification
 - (void)test
 {
     DDLog(@"-[DDTestManager test]");
-//    DDTestManagerTestString = @"DDTestManagerTestString";
-    [[NSNotificationCenter defaultCenter] postNotification:DDTestManagerTestNotification];
+    DDTestManagerTestString = @"DDTestManagerTestString";
+    [[NSNotificationCenter defaultCenter] postNotificationName:DDTestManagerTestNotification object:nil];
 }
 @end

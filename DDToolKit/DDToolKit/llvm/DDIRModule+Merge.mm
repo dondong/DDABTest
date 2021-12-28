@@ -200,8 +200,11 @@ using namespace llvm;
 //                               ConstantArray::get(ArrayType::get(Type::getInt8PtrTy(m.module->getContext()), staticVarList.size()), staticVarList),
 //                               ModuleReferenceVarables);
             for (NSArray *arr in staticVarChangeList) {
-                m.module->getGlobalVariable([arr[0] cStringUsingEncoding:NSUTF8StringEncoding])->setName([arr[1] cStringUsingEncoding:NSUTF8StringEncoding]);
-                [changeitems addObject:[DDIRNameChangeItem globalVariableItemWithTargetName:arr[0] newName:arr[1]]];
+                GlobalVariable *var = m.module->getGlobalVariable([arr[0] cStringUsingEncoding:NSUTF8StringEncoding]);
+                var->setName([arr[1] cStringUsingEncoding:NSUTF8StringEncoding]);
+                if ([DDIRUtil isExternalStaticVariable:var]) {
+                    [changeitems addObject:[DDIRNameChangeItem globalVariableItemWithTargetName:arr[0] newName:arr[1]]];
+                }
             }
         }];
     }

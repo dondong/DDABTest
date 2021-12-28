@@ -155,6 +155,7 @@
 		A3B89F9427699F1200966E17 /* AFNetworkReachabilityManager.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AFNetworkReachabilityManager.m; sourceTree = "<group>"; };
 		A3B89F9527699F1200966E17 /* AFSecurityPolicy.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AFSecurityPolicy.m; sourceTree = "<group>"; };
 		A3B89F9627699F1200966E17 /* AFHTTPSessionManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AFHTTPSessionManager.h; sourceTree = "<group>"; };
+		A3FA4F49277ABEB100A4DE7D /* libDDABTest.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libDDABTest.a; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -259,6 +260,7 @@
 		A3F9055C26FC85450068EE2F /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				A3FA4F49277ABEB100A4DE7D /* libDDABTest.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -369,7 +371,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nif [ -f \"${TARGET_BUILD_DIR}/libAFNetworking.a\" ]; then\n    rm ${TARGET_BUILD_DIR}/libAFNetworking.a\nfi\n../DDToolKit \"${TARGET_BUILD_DIR}/libAFNetworking_2_6_0.a\" \"2.6.0\" \"${TARGET_BUILD_DIR}/libAFNetworking_3_0_0.a\" \"3.0.0\" --name AFNetworking --id 5 --output_config ../DDTestDemo/DDTestDemo/DDABTestConfiguration.plist --output \"${TARGET_BUILD_DIR}/libAFNetworking.a\" >  \"${TARGET_BUILD_DIR}/networklog\"\n";
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nif [ ! -f \"${TARGET_BUILD_DIR}/DDToolKit_Network\" ]; then\n    ARCH=`uname -m`\n    cp -r \"../../DDToolKit\" \"../../DDToolKit_Network\"\n    xcodebuild archive -project \"../../DDToolKit_Network/DDToolKit.xcodeproj\" -scheme \"DDToolKit\" -arch $ARCH -configuration release -archivePath DDToolKit.xcarchive\n    mv \"DDToolKit.xcarchive/Products/usr/local/bin/DDToolKit\" \"${TARGET_BUILD_DIR}/DDToolKit_Network\"\n    rm -r DDToolKit.xcarchive\n    rm -r ../../DDToolKit_Network\nfi\nif [ -f \"${TARGET_BUILD_DIR}/libAFNetworking.a\" ]; then\n    rm ${TARGET_BUILD_DIR}/libAFNetworking.a\nfi\n${TARGET_BUILD_DIR}/DDToolKit_Network \"${TARGET_BUILD_DIR}/libAFNetworking_2_6_0.a\" \"2.6.0\" \"${TARGET_BUILD_DIR}/libAFNetworking_3_0_0.a\" \"3.0.0\" --name AFNetworking --id 5 --output_config ../DDTestDemo/DDTestDemo/DDABTestConfiguration.plist --output \"${TARGET_BUILD_DIR}/libAFNetworking.a\" >  \"${TARGET_BUILD_DIR}/networklog\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

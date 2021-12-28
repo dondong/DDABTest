@@ -8,8 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		A3077C0926F20BAC00A2CE4F /* DDEmpty.m in Sources */ = {isa = PBXBuildFile; fileRef = A3077C0826F20BAC00A2CE4F /* DDEmpty.m */; };
-		A328CC7426FC9B16002BFD20 /* libDDTestStaticLibraryA.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A3871F0026E5B04700980895 /* libDDTestStaticLibraryA.a */; };
-		A328CC7526FC9B16002BFD20 /* libDDTestStaticLibraryB.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A39449AE26FACA040082ADE0 /* libDDTestStaticLibraryB.a */; };
 		A328CC7726FC9DF9002BFD20 /* DDTestDemo.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = A328CC7626FC9DD1002BFD20 /* DDTestDemo.h */; };
 		A328CC7826FC9E00002BFD20 /* DDTestDemo.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = A328CC7626FC9DD1002BFD20 /* DDTestDemo.h */; };
 		A328CC7926FC9E06002BFD20 /* DDTestDemo.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = A328CC7626FC9DD1002BFD20 /* DDTestDemo.h */; };
@@ -47,6 +45,23 @@
 		A3C7F58B2779A1A50004A0F6 /* DDTestManager.m in Sources */ = {isa = PBXBuildFile; fileRef = A3C420112771A75B0037AE8F /* DDTestManager.m */; };
 		A3C7F58C2779A1A60004A0F6 /* DDTestManager.m in Sources */ = {isa = PBXBuildFile; fileRef = A3C420112771A75B0037AE8F /* DDTestManager.m */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A3FA4F4B277ABECB00A4DE7D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A3871EF826E5B04700980895 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A3871EFF26E5B04700980895;
+			remoteInfo = DDTestStaticLibraryA;
+		};
+		A3FA4F4D277ABECB00A4DE7D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A3871EF826E5B04700980895 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A39449AD26FACA040082ADE0;
+			remoteInfo = DDTestStaticLibraryB;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		A328CC6726FC9AD8002BFD20 /* CopyFiles */ = {
@@ -126,6 +141,7 @@
 		A3C7442A2733F937007AD417 /* DDTestLoad.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = DDTestLoad.m; sourceTree = "<group>"; };
 		A3C7442D2733F9D1007AD417 /* NSString+Load.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "NSString+Load.h"; sourceTree = "<group>"; };
 		A3C7442E2733F9D1007AD417 /* NSString+Load.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "NSString+Load.m"; sourceTree = "<group>"; };
+		A3FA4F47277ABC1800A4DE7D /* libDDToolKit.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libDDToolKit.a; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -133,8 +149,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A328CC7426FC9B16002BFD20 /* libDDTestStaticLibraryA.a in Frameworks */,
-				A328CC7526FC9B16002BFD20 /* libDDTestStaticLibraryB.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -273,6 +287,7 @@
 		A3F9055C26FC85450068EE2F /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				A3FA4F47277ABC1800A4DE7D /* libDDToolKit.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -292,6 +307,8 @@
 			buildRules = (
 			);
 			dependencies = (
+				A3FA4F4C277ABECB00A4DE7D /* PBXTargetDependency */,
+				A3FA4F4E277ABECB00A4DE7D /* PBXTargetDependency */,
 			);
 			name = DDTestStaticLibrary;
 			productName = DDTestStaticLibrary;
@@ -387,7 +404,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nif [ -f \"${TARGET_BUILD_DIR}/libDDTestStaticLibrary.a\" ]; then\n    rm ${TARGET_BUILD_DIR}/libDDTestStaticLibrary.a\nfi\n\n../DDToolKit \"${TARGET_BUILD_DIR}/libDDTestStaticLibraryA.a\" A \"${TARGET_BUILD_DIR}/libDDTestStaticLibraryB.a\" B --name DDTestStaticLibrary --id 4 --output_config ../DDTestDemo/DDTestDemo/DDABTestConfiguration.plist --output \"${TARGET_BUILD_DIR}/libDDTestStaticLibrary.a\"\n";
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nif [ ! -f \"${TARGET_BUILD_DIR}/DDToolKit_Custom\" ]; then\n    ARCH=`uname -m`\n    cp -r \"../../DDToolKit\" \"../../DDToolKit_Custom\"\n    xcodebuild archive -project \"../../DDToolKit_Custom/DDToolKit.xcodeproj\" -scheme \"DDToolKit\" -arch $ARCH -configuration release -archivePath DDToolKit.xcarchive\n    mv \"DDToolKit.xcarchive/Products/usr/local/bin/DDToolKit\" \"${TARGET_BUILD_DIR}/DDToolKit_Custom\"\n    rm -r DDToolKit.xcarchive\n    rm -r ../../DDToolKit_Custom\nfi\nif [ -f \"${TARGET_BUILD_DIR}/libDDTestStaticLibrary.a\" ]; then\n    rm ${TARGET_BUILD_DIR}/libDDTestStaticLibrary.a\nfi\n\n${TARGET_BUILD_DIR}/DDToolKit_Custom \"${TARGET_BUILD_DIR}/libDDTestStaticLibraryA.a\" A \"${TARGET_BUILD_DIR}/libDDTestStaticLibraryB.a\" B --name DDTestStaticLibrary --id 4 --output_config ../DDTestDemo/DDTestDemo/DDABTestConfiguration.plist --output \"${TARGET_BUILD_DIR}/libDDTestStaticLibrary.a\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -449,6 +466,19 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		A3FA4F4C277ABECB00A4DE7D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A3871EFF26E5B04700980895 /* DDTestStaticLibraryA */;
+			targetProxy = A3FA4F4B277ABECB00A4DE7D /* PBXContainerItemProxy */;
+		};
+		A3FA4F4E277ABECB00A4DE7D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A39449AD26FACA040082ADE0 /* DDTestStaticLibraryB */;
+			targetProxy = A3FA4F4D277ABECB00A4DE7D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
 		A328CC7026FC9AD8002BFD20 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -456,7 +486,7 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 5T35W28N8A;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -470,7 +500,7 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 5T35W28N8A;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
