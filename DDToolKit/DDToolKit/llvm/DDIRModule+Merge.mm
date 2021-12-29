@@ -217,11 +217,7 @@ using namespace llvm;
     DDIRModule *module = [DDIRModule moduleFromPath:outputPath];
     
     [module executeChangesWithBlock:^(DDIRModule * _Nullable m) {
-        GlobalVariable *funVar =  m.module->getGlobalVariable(ModuleReferenceFunctions);
-        if (nullptr != funVar) {
-            funVar->eraseFromParent();
-        }
-//        m.module->getGlobalVariable(ModuleReferenceFunctions)->eraseFromParent();
+        m.module->getGlobalVariable(ModuleReferenceFunctions)->eraseFromParent();
 //        m.module->getGlobalVariable(ModuleReferenceVarables)->eraseFromParent();
         // protocol
         for (NSString *name in mergeProtocolList.allKeys) {
@@ -1718,12 +1714,13 @@ public:
                                    GlobalValue::ExternalLinkage,
                                    var->getInitializer(),
                                    [srcName cStringUsingEncoding:NSUTF8StringEncoding]);
+            } else {
+                GlobalVariable *srcVar = self.module->getGlobalVariable([srcName cStringUsingEncoding:NSUTF8StringEncoding]);
+                GlobalVariable *dstVar = self.module->getGlobalVariable([dstName cStringUsingEncoding:NSUTF8StringEncoding]);
+                LoadInst *load = builder.CreateLoad(dyn_cast<PointerType>(dstVar->getType())->getElementType(), dstVar);
+                Value *bitcast = builder.CreateBitCast(load, dyn_cast<PointerType>(srcVar->getType())->getElementType());
+                builder.CreateStore(bitcast, srcVar);
             }
-            GlobalVariable *srcVar = self.module->getGlobalVariable([srcName cStringUsingEncoding:NSUTF8StringEncoding]);
-            GlobalVariable *dstVar = self.module->getGlobalVariable([dstName cStringUsingEncoding:NSUTF8StringEncoding]);
-            LoadInst *load = builder.CreateLoad(dyn_cast<PointerType>(dstVar->getType())->getElementType(), dstVar);
-            Value *bitcast = builder.CreateBitCast(load, dyn_cast<PointerType>(srcVar->getType())->getElementType());
-            builder.CreateStore(bitcast, srcVar);
         }
         builder.CreateRetVoid();
         switchInst->addCase(ConstantInt::get(Type::getInt32Ty(self.module->getContext()), i), block);

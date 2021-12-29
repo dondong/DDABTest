@@ -14,16 +14,7 @@
 @implementation DDABTest
 + (void)load
 {
-    struct dd_macho *macho = NULL;
-    int index = 0;
-    for (int i = 0; i < _dyld_image_count(); ++i) {
-        NSString *name = [NSString stringWithFormat:@"%s", _dyld_get_image_name(i)];
-        if ([[name stringByDeletingLastPathComponent] hasSuffix:@".app"]) {
-            macho = dd_copy_macho_at_index(i);
-            index = i;
-            break;
-        }
-    }
+    struct dd_macho *macho = dd_copy_main_macho();
     if (NULL == macho) {
         return;
     }
