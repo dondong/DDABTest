@@ -90,10 +90,10 @@
 
 - (NSInteger)printString:(nonnull NSString *)str andInt:(NSInteger)intVal
 {
-    DDLog(@"before -[DDTestDemo printString:andInt:]  strB: %@  intB: %d", self.strB, self.intB);
+    DDLog(@"before -[DDTestDemo printString:andInt:]  strB: %@  intB: %ld", self.strB, self.intB);
     self.strB = str;
     self.intB = intVal;
-    DDLog(@"after -[DDTestDemo printString:andInt:]  strB: %@  intB: %d", self.strB, self.intB);
+    DDLog(@"after -[DDTestDemo printString:andInt:]  strB: %@  intB: %ld", self.strB, self.intB);
     return 0;
 }
 #endif

@@ -12,7 +12,6 @@ NS_ASSUME_NONNULL_BEGIN
 @interface DDStaticLibrary()
 @property(nonatomic,strong,readwrite,nonnull) NSString *path;
 @property(nonatomic,strong,readwrite,nonnull) NSString *tmpPath;
-@property(nonatomic,strong,readwrite,nonnull) NSArray<NSString *> *architectures;
 @end
 
 NS_ASSUME_NONNULL_END

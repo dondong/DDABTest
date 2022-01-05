@@ -328,7 +328,7 @@
 		A3871EF826E5B04700980895 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 1250;
+				LastUpgradeCheck = 1310;
 				TargetAttributes = {
 					A328CC6826FC9AD8002BFD20 = {
 						CreatedOnToolsVersion = 13.0;
@@ -371,7 +371,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nif [ ! -f \"${TARGET_BUILD_DIR}/DDToolKit_Network\" ]; then\n    ARCH=`uname -m`\n    cp -r \"../../DDToolKit\" \"../../DDToolKit_Network\"\n    xcodebuild archive -project \"../../DDToolKit_Network/DDToolKit.xcodeproj\" -scheme \"DDToolKit\" -arch $ARCH -configuration release -archivePath DDToolKit.xcarchive\n    mv \"DDToolKit.xcarchive/Products/usr/local/bin/DDToolKit\" \"${TARGET_BUILD_DIR}/DDToolKit_Network\"\n    rm -r DDToolKit.xcarchive\n    rm -r ../../DDToolKit_Network\nfi\nif [ -f \"${TARGET_BUILD_DIR}/libAFNetworking.a\" ]; then\n    rm ${TARGET_BUILD_DIR}/libAFNetworking.a\nfi\n${TARGET_BUILD_DIR}/DDToolKit_Network \"${TARGET_BUILD_DIR}/libAFNetworking_2_6_0.a\" \"2.6.0\" \"${TARGET_BUILD_DIR}/libAFNetworking_3_0_0.a\" \"3.0.0\" --name AFNetworking --id 5 --output_config ../DDTestDemo/DDTestDemo/DDABTestConfiguration.plist --output \"${TARGET_BUILD_DIR}/libAFNetworking.a\" >  \"${TARGET_BUILD_DIR}/networklog\"\n";
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nif [ ! -f \"${TARGET_BUILD_DIR}/DDToolKit_Network\" ]; then\n    ARCH=`uname -m`\n    cp -r \"../../DDToolKit\" \"../../DDToolKit_Network\"\n    xcodebuild archive -project \"../../DDToolKit_Network/DDToolKit.xcodeproj\" -scheme \"DDToolKit\" -arch $ARCH -configuration release -archivePath DDToolKit.xcarchive\n    mv \"DDToolKit.xcarchive/Products/usr/local/bin/DDToolKit\" \"${TARGET_BUILD_DIR}/DDToolKit_Network\"\n    rm -r DDToolKit.xcarchive\n    rm -r ../../DDToolKit_Network\nfi\nif [ -f \"${TARGET_BUILD_DIR}/libAFNetworking.a\" ]; then\n    rm ${TARGET_BUILD_DIR}/libAFNetworking.a\nfi\n${TARGET_BUILD_DIR}/DDToolKit_Network \"${TARGET_BUILD_DIR}/libAFNetworking_2_6_0.a\" \"2.6.0\" \"${TARGET_BUILD_DIR}/libAFNetworking_3_0_0.a\" \"3.0.0\" --name AFNetworking --id 5 --output_config ../DDTestDemo/DDTestDemo/DDABTestConfiguration.plist --output \"${TARGET_BUILD_DIR}/libAFNetworking.a\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -434,7 +434,7 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 5T35W28N8A;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -448,7 +448,7 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 5T35W28N8A;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -507,7 +507,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -560,7 +560,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
@@ -574,7 +574,7 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 5T35W28N8A;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				OTHER_CFLAGS = "-fembed-bitcode";
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -589,7 +589,7 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 5T35W28N8A;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				OTHER_CFLAGS = "-fembed-bitcode";
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -604,7 +604,7 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 5T35W28N8A;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				OTHER_CFLAGS = "-fembed-bitcode";
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -619,7 +619,7 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 5T35W28N8A;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				OTHER_CFLAGS = "-fembed-bitcode";
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";

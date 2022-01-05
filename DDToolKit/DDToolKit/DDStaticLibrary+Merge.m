@@ -92,14 +92,16 @@
         lib.mergePathList = nil;
     }
     NSMutableSet *architectures = [NSMutableSet set];
+    NSMutableDictionary *cmdlines = [NSMutableDictionary dictionary];
     for (DDStaticLibrary *lib in libraries) {
         [architectures addObjectsFromArray:lib.architectures];
+        [cmdlines addEntriesFromDictionary:lib.cmdlines];
     }
     DDStaticLibrary *ret = [[DDStaticLibrary alloc] init];
     ret.path = outputLibrary;
     ret.tmpPath = tmpDirectory;
     ret.pathList = pathList;
-    ret.architectures = architectures.allObjects;
+    ret.cmdlines = [NSDictionary dictionaryWithDictionary:cmdlines];
     
     NSMutableString *archPath = [NSMutableString string];
     NSMutableArray *archList = [NSMutableArray array];
@@ -107,10 +109,10 @@
         NSString *tmpDir = [ret.tmpPath stringByAppendingPathComponent:[NSString stringWithFormat:@"tmp_%u", arc4random()]];
         [[NSFileManager defaultManager] removeItemAtPath:tmpDir error:NULL];
         [[NSFileManager defaultManager] createDirectoryAtPath:tmpDir withIntermediateDirectories:YES attributes:nil error:NULL];
-        NSString *target = [self _targetForArch:arch];
+        NSString *cl = ret.cmdlines[arch];
         for (NSString *p in ret.pathList) {
             NSString *name = [p lastPathComponent];
-            system([[NSString stringWithFormat:@"xcrun clang -O1 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk -target %@ -fembed-bitcode -c %@ -o %@", target, p, [tmpDir stringByAppendingPathComponent:[[name stringByDeletingPathExtension] stringByAppendingString:@".o"]]] cStringUsingEncoding:NSUTF8StringEncoding]);
+            system([[NSString stringWithFormat:@"xcrun clang %@ -fembed-bitcode=all %@ -o %@", cl, p, [tmpDir stringByAppendingPathComponent:[[name stringByDeletingPathExtension] stringByAppendingString:@".o"]]] cStringUsingEncoding:NSUTF8StringEncoding]);
         }
         if (architectures.count > 1) {
             NSString *name = [[ret.path lastPathComponent] stringByDeletingPathExtension];

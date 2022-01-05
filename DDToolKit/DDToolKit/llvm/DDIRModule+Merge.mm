@@ -360,31 +360,10 @@ using namespace llvm;
             }
         }
     }
-//    std::vector<GlobalVariable *> staticVariableList;
-//    for (GlobalVariable &var : self.module->getGlobalList()) {
-//        if (true == [DDIRUtil isExternalStaticVariable:std::addressof(var)]) {
-//            staticVariableList.push_back(std::addressof(var));
-//        }
+//    while (self.module->named_metadata_begin() != self.module->named_metadata_end()) {
+//        auto node = self.module->named_metadata_begin();
+//        self.module->eraseNamedMetadata(std::addressof(*node));
 //    }
-//    NSMutableArray *changeVariableList = [NSMutableArray array];
-//    [changeRecords setObject:changeVariableList forKey:DDIRReplaceResultGlobalVariableKey];
-//    for (GlobalVariable *var : staticVariableList) {
-//        NSString *name = [NSString stringWithFormat:@"%s", var->getName().data()];
-//        var->setName("temp_var");
-//        GlobalVariable *newVar = new GlobalVariable(*self.module,
-//                                                    var->getInitializer()->getType(),
-//                                                    true,
-//                                                    GlobalValue::ExternalLinkage,
-//                                                    nullptr,
-//                                                    [name cStringUsingEncoding:NSUTF8StringEncoding]);
-//        [DDIRUtil replaceGlobalVariable:var with:newVar];
-//        var->eraseFromParent();
-//        [changeVariableList addObject:name];
-//    }
-    while (self.module->named_metadata_begin() != self.module->named_metadata_end()) {
-        auto node = self.module->named_metadata_begin();
-        self.module->eraseNamedMetadata(std::addressof(*node));
-    }
     [self mergeObjcData];
     return [NSDictionary dictionaryWithDictionary:changeRecords];
 }

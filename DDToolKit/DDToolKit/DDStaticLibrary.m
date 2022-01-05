@@ -38,19 +38,20 @@
     } else {
         [architectures addObject:[[[archStr componentsSeparatedByString:@"is architecture:"] lastObject] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]]];
     }
-    library.architectures = [NSArray arrayWithArray:architectures];
     [[NSFileManager defaultManager] removeItemAtPath:archStrPath error:NULL];
     
+    NSString *architecture = [architectures lastObject];
     if (architectures.count > 1) {
         NSString *outputLibraryPath = [library.tmpPath stringByAppendingPathComponent:library.path.lastPathComponent];
-        NSString *arch = [library.architectures containsObject:@"arm64"] ? @"arm64" : [architectures lastObject];
-        system([[NSString stringWithFormat:@"lipo -thin %@ %@ -output %@", arch, library.path, outputLibraryPath] cStringUsingEncoding:NSUTF8StringEncoding]);
+        architecture = [library.architectures containsObject:@"arm64"] ? @"arm64" : [architectures lastObject];
+        system([[NSString stringWithFormat:@"lipo -thin %@ %@ -output %@", architecture, library.path, outputLibraryPath] cStringUsingEncoding:NSUTF8StringEncoding]);
         system([[NSString stringWithFormat:@"tar -xf %@ -C %@", outputLibraryPath, library.tmpPath] cStringUsingEncoding:NSUTF8StringEncoding]);
         [[NSFileManager defaultManager] removeItemAtPath:outputLibraryPath error:NULL];
     } else {
         system([[NSString stringWithFormat:@"tar -xf %@ -C %@", path, library.tmpPath] cStringUsingEncoding:NSUTF8StringEncoding]);
     }
     
+    NSMutableDictionary *cmdlines = [NSMutableDictionary dictionary];
     NSMutableArray *pathList = [NSMutableArray array];
     for (NSString *p in [[NSFileManager defaultManager] subpathsAtPath:library.tmpPath]) {
         if ([[[p pathExtension] lowercaseString] isEqualToString:@"o"]) {
@@ -61,17 +62,52 @@
             system([[NSString stringWithFormat:@"segedit %@ -extract __LLVM __bitcode %@", ofilePath, bcPath] cStringUsingEncoding:NSUTF8StringEncoding]);
             system([[NSString stringWithFormat:@"/usr/local/bin/llvm-dis %@ %@", bcPath, llPath] cStringUsingEncoding:NSUTF8StringEncoding]);
             [pathList addObject:llPath];
-            [[NSFileManager defaultManager] removeItemAtPath:ofilePath error:NULL];
             [[NSFileManager defaultManager] removeItemAtPath:bcPath error:NULL];
 #else
             system([[NSString stringWithFormat:@"segedit %@ -extract __LLVM __bitcode %@", ofilePath, bcPath] cStringUsingEncoding:NSUTF8StringEncoding]);
             [pathList addObject:bcPath];
-            [[NSFileManager defaultManager] removeItemAtPath:ofilePath error:NULL];
 #endif
+            if (nil == cmdlines[architecture]) {
+                NSString *clPath = [[ofilePath stringByDeletingPathExtension] stringByAppendingPathExtension:@"cmdline"];
+                system([[NSString stringWithFormat:@"segedit %@ -extract __LLVM __cmdline %@", ofilePath, clPath] cStringUsingEncoding:NSUTF8StringEncoding]);
+                NSString *data = [NSString stringWithContentsOfFile:clPath encoding:NSUTF8StringEncoding error:NULL];
+                cmdlines[architecture] = [data stringByReplacingOccurrencesOfString:@"\0" withString:@" "];
+                [[NSFileManager defaultManager] removeItemAtPath:clPath error:NULL];
+            }
+            [[NSFileManager defaultManager] removeItemAtPath:ofilePath error:NULL];
         }
     }
+    for (NSString *arch in architectures) {
+        if ([arch isEqualToString:architecture]) {
+            continue;
+        }
+        NSString *tmpDir = [library.tmpPath stringByAppendingPathComponent:[[library.path.lastPathComponent stringByDeletingPathExtension] stringByAppendingFormat:@"_%u", arc4random()]];
+        [[NSFileManager defaultManager] createDirectoryAtPath:tmpDir withIntermediateDirectories:YES attributes:nil error:NULL];
+        NSString *tmpPath = [library.tmpPath stringByAppendingPathComponent:[[library.path.lastPathComponent stringByDeletingPathExtension] stringByAppendingFormat:@"_%@.a", arch]];
+        system([[NSString stringWithFormat:@"lipo -thin %@ %@ -output %@", arch, library.path, tmpPath] cStringUsingEncoding:NSUTF8StringEncoding]);
+        system([[NSString stringWithFormat:@"tar -xf %@ -C %@", tmpPath, tmpDir] cStringUsingEncoding:NSUTF8StringEncoding]);
+        [[NSFileManager defaultManager] removeItemAtPath:tmpPath error:NULL];
+        for (NSString *p in [[NSFileManager defaultManager] subpathsAtPath:tmpDir]) {
+            if ([[[p pathExtension] lowercaseString] isEqualToString:@"o"]) {
+                NSString *ofilePath = [tmpDir stringByAppendingPathComponent:p];
+                NSString *clPath = [[ofilePath stringByDeletingPathExtension] stringByAppendingPathExtension:@"cmdline"];
+                system([[NSString stringWithFormat:@"segedit %@ -extract __LLVM __cmdline %@", ofilePath, clPath] cStringUsingEncoding:NSUTF8StringEncoding]);
+                NSString *data = [NSString stringWithContentsOfFile:clPath encoding:NSUTF8StringEncoding error:NULL];
+                cmdlines[arch] = [data stringByReplacingOccurrencesOfString:@"\0" withString:@" "];
+                [[NSFileManager defaultManager] removeItemAtPath:clPath error:NULL];
+                break;
+            }
+        }
+        [[NSFileManager defaultManager] removeItemAtPath:tmpDir error:NULL];
+    }
     library.pathList = [NSMutableArray arrayWithArray:pathList];
+    library.cmdlines = [NSDictionary dictionaryWithDictionary:cmdlines];
     return library;
+}
+
+- (NSArray<NSString *> *)architectures
+{
+    return self.cmdlines.allKeys;
 }
 
 - (void)clear

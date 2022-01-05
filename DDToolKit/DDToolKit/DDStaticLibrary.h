@@ -11,8 +11,9 @@
 NS_ASSUME_NONNULL_BEGIN
 
 @interface DDStaticLibrary : NSObject
-@property(nonatomic,strong) NSMutableArray *pathList;
+@property(nonatomic,strong) NSArray *pathList;
 @property(nonatomic,strong,readonly,nonnull) NSString *path;
+@property(nonatomic,strong) NSDictionary<NSString *, NSString *> *cmdlines;
 @property(nonatomic,strong,readonly,nonnull) NSArray<NSString *> *architectures;
 + (nullable instancetype)libraryFromPath:(nonnull NSString *)path tempDir:(nonnull NSString *)tempDir;
 - (void)clear;
