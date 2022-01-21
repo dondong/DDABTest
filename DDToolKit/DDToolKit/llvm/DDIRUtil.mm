@@ -505,10 +505,6 @@ llvm::GlobalVariable *getValue(llvm::GlobalVariable * _Nonnull var, int index)
 + (nonnull NSString *)stringFromGlobalVariable:(llvm::GlobalVariable * _Nonnull)var
 {
     ConstantDataArray *array = dyn_cast<ConstantDataArray>(var->getInitializer());
-    NSMutableString *str = [[NSMutableString alloc] init];
-    for (int i = 0; i < array->getType()->getArrayNumElements() - 1; ++i) {
-        [str appendFormat:@"%c", (char)array->getElementAsInteger(i)];
-    }
-    return [NSString stringWithString:str];
+    return [NSString stringWithFormat:@"%s", array->getRawDataValues().data()];
 }
 @end
