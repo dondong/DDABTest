@@ -21,9 +21,10 @@
 		A30C5D0226F3331300227E78 /* libncurses.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = A30C5D0126F3330F00227E78 /* libncurses.tbd */; };
 		A30C5D0426F3331B00227E78 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = A30C5D0326F3331700227E78 /* libz.tbd */; };
 		A3A5F365272144B400326770 /* DDIRModule+Merge.mm in Sources */ = {isa = PBXBuildFile; fileRef = A3A5F364272144B400326770 /* DDIRModule+Merge.mm */; };
-		A3B8DC65271D77BC00E7C76B /* DDIRUtil+Objc.mm in Sources */ = {isa = PBXBuildFile; fileRef = A3B8DC64271D77BC00E7C76B /* DDIRUtil+Objc.mm */; };
 		A3E29F4927574837008FFF60 /* DDStaticLibrary+Merge.m in Sources */ = {isa = PBXBuildFile; fileRef = A3E29F4827574837008FFF60 /* DDStaticLibrary+Merge.m */; };
 		A3EA896627756D380031835A /* DDIRChangeItem.mm in Sources */ = {isa = PBXBuildFile; fileRef = A3EA896527756D380031835A /* DDIRChangeItem.mm */; };
+		A3F45CC827A0E04B00DB2611 /* DDIRUtil.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A3F45CC627A0E04B00DB2611 /* DDIRUtil.cpp */; };
+		A3F45CE627A1263B00DB2611 /* DDIRUtil_Objc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A3F45CE427A1263B00DB2611 /* DDIRUtil_Objc.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -66,14 +67,16 @@
 		A3A5F364272144B400326770 /* DDIRModule+Merge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = "DDIRModule+Merge.mm"; sourceTree = "<group>"; };
 		A3A5F36627214AEF00326770 /* DDIRModule+Private.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "DDIRModule+Private.h"; sourceTree = "<group>"; };
 		A3B59B32273CCC8300F8A7E2 /* DDToolKitDefine.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DDToolKitDefine.h; sourceTree = "<group>"; };
-		A3B8DC63271D77BC00E7C76B /* DDIRUtil+Objc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "DDIRUtil+Objc.h"; sourceTree = "<group>"; };
-		A3B8DC64271D77BC00E7C76B /* DDIRUtil+Objc.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = "DDIRUtil+Objc.mm"; sourceTree = "<group>"; };
 		A3E29F4727574837008FFF60 /* DDStaticLibrary+Merge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "DDStaticLibrary+Merge.h"; sourceTree = "<group>"; };
 		A3E29F4827574837008FFF60 /* DDStaticLibrary+Merge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "DDStaticLibrary+Merge.m"; sourceTree = "<group>"; };
 		A3E29F4A2757815A008FFF60 /* DDStaticLibrary+Private.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "DDStaticLibrary+Private.h"; sourceTree = "<group>"; };
 		A3EA896427756D380031835A /* DDIRChangeItem.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DDIRChangeItem.h; sourceTree = "<group>"; };
 		A3EA896527756D380031835A /* DDIRChangeItem.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = DDIRChangeItem.mm; sourceTree = "<group>"; };
 		A3EA89672775A61E0031835A /* DDIRChangeItem+Perform.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "DDIRChangeItem+Perform.h"; sourceTree = "<group>"; };
+		A3F45CC627A0E04B00DB2611 /* DDIRUtil.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DDIRUtil.cpp; sourceTree = "<group>"; };
+		A3F45CC727A0E04B00DB2611 /* DDIRUtil.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = DDIRUtil.hpp; sourceTree = "<group>"; };
+		A3F45CE427A1263B00DB2611 /* DDIRUtil_Objc.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DDIRUtil_Objc.cpp; sourceTree = "<group>"; };
+		A3F45CE527A1263B00DB2611 /* DDIRUtil_Objc.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = DDIRUtil_Objc.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -144,11 +147,13 @@
 				A30C5CEB26F332D600227E78 /* DDIRStringVariable.m */,
 				A30C5CE826F332D600227E78 /* DDIRUtil.h */,
 				A30C5CEA26F332D600227E78 /* DDIRUtil.mm */,
-				A3B8DC63271D77BC00E7C76B /* DDIRUtil+Objc.h */,
-				A3B8DC64271D77BC00E7C76B /* DDIRUtil+Objc.mm */,
 				A3EA896427756D380031835A /* DDIRChangeItem.h */,
 				A3EA896527756D380031835A /* DDIRChangeItem.mm */,
 				A3EA89672775A61E0031835A /* DDIRChangeItem+Perform.h */,
+				A3F45CC727A0E04B00DB2611 /* DDIRUtil.hpp */,
+				A3F45CC627A0E04B00DB2611 /* DDIRUtil.cpp */,
+				A3F45CE527A1263B00DB2611 /* DDIRUtil_Objc.hpp */,
+				A3F45CE427A1263B00DB2611 /* DDIRUtil_Objc.cpp */,
 			);
 			path = llvm;
 			sourceTree = "<group>";
@@ -234,11 +239,12 @@
 				A30C5CF426F332D600227E78 /* DDABTestTool.m in Sources */,
 				A3E29F4927574837008FFF60 /* DDStaticLibrary+Merge.m in Sources */,
 				A30C5CF626F332D600227E78 /* DDIRObjCClass.m in Sources */,
-				A3B8DC65271D77BC00E7C76B /* DDIRUtil+Objc.mm in Sources */,
 				A30C5CF526F332D600227E78 /* DDStaticLibrary.m in Sources */,
 				A30C5CF326F332D600227E78 /* main.mm in Sources */,
 				A30C5CF826F332D600227E78 /* DDIRStringVariable.m in Sources */,
 				A30C5CFA26F332D600227E78 /* DDIRModule.mm in Sources */,
+				A3F45CC827A0E04B00DB2611 /* DDIRUtil.cpp in Sources */,
+				A3F45CE627A1263B00DB2611 /* DDIRUtil_Objc.cpp in Sources */,
 				A3A5F365272144B400326770 /* DDIRModule+Merge.mm in Sources */,
 				A30C5CFB26F332D600227E78 /* DDIRFunction.m in Sources */,
 				A30C5CF926F332D600227E78 /* DDIRGlobalVariable.m in Sources */,
@@ -402,6 +408,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LIBRARY_SEARCH_PATHS = /usr/local/lib;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				OTHER_LDFLAGS = (
 					"-lLLVMAsmParser",
 					"-lLLVMCore",
@@ -446,6 +453,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LIBRARY_SEARCH_PATHS = /usr/local/lib;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				OTHER_LDFLAGS = (
 					"-lLLVMAsmParser",
 					"-lLLVMCore",

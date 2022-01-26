@@ -8,6 +8,7 @@
 #import "DDIRChangeItem.h"
 #import "DDIRChangeItem+Perform.h"
 #import "DDIRUtil.h"
+#include "DDIRUtil.hpp"
 
 using namespace llvm;
 
@@ -55,7 +56,7 @@ using namespace llvm;
 {
     GlobalValue *value = [self _getValue:module];
     if (nullptr != value) {
-        [DDIRUtil removeGlobalValue:value inModule:module];
+        removeGlobalValue(value);
     }
 }
 @end
@@ -107,7 +108,7 @@ using namespace llvm;
                                                         GlobalValue::ExternalLinkage,
                                                         nullptr,
                                                         [self.targetName cStringUsingEncoding:NSUTF8StringEncoding]);
-            [DDIRUtil replaceGlobalVariable:var with:newVar];
+            replaceGlobalVariable(var, newVar);
             var->eraseFromParent();
         }
             break;
@@ -117,7 +118,7 @@ using namespace llvm;
             if (nullptr == fun || 0 == fun->size()) return;
             fun->setName("temp_function");
             Function *newFun = Function::Create(fun->getFunctionType(), GlobalValue::ExternalLinkage, [self.targetName cStringUsingEncoding:NSUTF8StringEncoding], module);
-            [DDIRUtil replaceFuction:fun with:newFun];
+            replaceFuction(fun, newFun);
             fun->eraseFromParent();
         }
             break;
@@ -150,7 +151,7 @@ using namespace llvm;
                                                         GlobalValue::ExternalLinkage,
                                                         nullptr,
                                                         [self.targetName cStringUsingEncoding:NSUTF8StringEncoding]);
-            [DDIRUtil replaceGlobalVariable:var with:newVar];
+            replaceGlobalVariable(var, newVar);
             var->eraseFromParent();
         }
     }
