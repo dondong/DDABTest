@@ -8,8 +8,8 @@
 #import "DDIRModule.h"
 #import "DDIRModule+Private.h"
 #import "DDIRModule+Merge.h"
-#import "DDIRUtil+Objc.h"
 #include "DDIRUtil.hpp"
+#include "DDIRUtil_Objc.hpp"
 #include <llvm/AsmParser/Parser.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>

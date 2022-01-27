@@ -36,7 +36,7 @@ void removeGlobalValue(llvm::GlobalValue * _Nonnull var, bool ignoreFunction = f
 // modify
 void replaceGlobalVariable(llvm::GlobalVariable * _Nonnull oldVar, llvm::GlobalVariable * _Nonnull newVar);
 void replaceFuction(llvm::Function * _Nonnull oldFun, llvm::Function * _Nonnull newFun);
-//std::string changeGlobalValueName(llvm::GlobalValue * _Nonnull variable, const char * _Nonnull oldName, const char * _Nonnull newName);
+std::string changeGlobalValueName(llvm::GlobalValue * _Nonnull variable, const char * _Nonnull oldName, const char * _Nonnull newName);
 void changeStringValue(llvm::Module * _Nonnull module, llvm::ConstantStruct * _Nonnull var, int index, const char * _Nonnull newString);
 llvm::GlobalVariable * _Nonnull insertValue(llvm::Constant * _Nonnull value, llvm::GlobalVariable * _Nonnull array, int index = 0);
 llvm::GlobalVariable * _Nonnull insertValue(llvm::Module * _Nonnull module, llvm::Constant * _Nonnull value, const char * _Nonnull arraySectionName, const char * _Nonnull defaultName, int index = 0);

@@ -9,9 +9,9 @@
 #import "DDIRModule+Private.h"
 #import "DDIRChangeItem+Perform.h"
 #import "DDCommonDefine.h"
-#import "DDIRUtil+Objc.h"
 #import <objc/runtime.h>
 #include "DDIRUtil.hpp"
+#include "DDIRUtil_Objc.hpp"
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/IRBuilder.h>

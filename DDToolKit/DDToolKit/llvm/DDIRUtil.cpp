@@ -280,33 +280,32 @@ void replaceFuction(llvm::Function * _Nonnull oldFun, llvm::Function * _Nonnull 
 }
 
 
-//std::string changeGlobalValueName(llvm::GlobalValue * _Nonnull variable, const char * _Nonnull oldName, const char * _Nonnull newName)
-//{
-//    return tmp_changeGlobalValueName(variable, oldName, newName);
-//    assert(nullptr != variable);
-//    std::string n(variable->getName().data());
-//    std::string o(variable->getName().data());
-//    size_t vl = o.length();
-//    size_t ol = strlen(oldName);
-//    if (vl > ol + 1 &&
-//        0 == o.compare(vl - ol - 1, ol + 1, std::string("_") + oldName, 0, ol + 1)) {   // xx_oldName
-//        n = o.replace(vl - ol - 1, ol + 1, std::string("_") + newName);
-//    } else if (vl > ol + 3 &&
-//               std::string::npos != o.find(std::string("$_") + oldName + ".")) {   // xx$_oldName.xx
-//        n.replace(o.find(std::string("$_") + oldName + "."), ol + 3, std::string("$_") + newName + ".");
-//    } else if (vl > ol + 2 &&
-//               std::string::npos != o.find(std::string("[") + oldName + " ")) {   // xx[oldName xx
-//        n.replace(o.find(std::string("[") + oldName + " "), ol + 2, std::string("[") + newName + " ");
-//    } else if (vl > ol + 2 &&
-//               std::string::npos != o.find(std::string("[") + oldName + "(")) {   // xx[oldName(xx
-//        n.replace(o.find(std::string("[") + oldName + "("), ol + 2, std::string("[") + newName + "(");
-//    } else if (vl > ol + 3 &&
-//               std::string::npos != o.find(std::string("(") + oldName + ") ")) {   // xx(oldName) xx
-//        n.replace(o.find(std::string("(") + oldName + ") "), ol + 3, std::string("(") + newName + ") ");
-//    }
-//    variable->setName(n);
-//    return n;
-//}
+std::string changeGlobalValueName(llvm::GlobalValue * _Nonnull variable, const char * _Nonnull oldName, const char * _Nonnull newName)
+{
+    assert(nullptr != variable);
+    std::string n(variable->getName().data());
+    std::string o(variable->getName().data());
+    size_t vl = o.length();
+    size_t ol = strlen(oldName);
+    if (vl > ol + 1 &&
+        0 == o.compare(vl - ol - 1, ol + 1, std::string("_") + oldName, 0, ol + 1)) {   // xx_oldName
+        n = o.replace(vl - ol, ol, newName);
+    } else if (vl > ol + 3 &&
+               std::string::npos != o.find(std::string("$_") + oldName + ".")) {   // xx$_oldName.xx
+        n.replace(o.find(std::string("$_") + oldName + ".") + 2, ol, newName);
+    } else if (vl > ol + 2 &&
+               std::string::npos != o.find(std::string("[") + oldName + " ")) {   // xx[oldName xx
+        n.replace(o.find(std::string("[") + oldName + " ") + 1, ol, newName);
+    } else if (vl > ol + 2 &&
+               std::string::npos != o.find(std::string("[") + oldName + "(")) {   // xx[oldName(xx
+        n.replace(o.find(std::string("[") + oldName + "(") + 1, ol, newName);
+    } else if (vl > ol + 3 &&
+               std::string::npos != o.find(std::string("(") + oldName + ") ")) {   // xx(oldName) xx
+        n.replace(o.find(std::string("(") + oldName + ") ") + 1, ol, newName);
+    }
+    variable->setName(n);
+    return n;
+}
 
 
 void changeStringValue(llvm::Module * _Nonnull module, llvm::ConstantStruct * _Nonnull var, int index, const char * _Nonnull newString)

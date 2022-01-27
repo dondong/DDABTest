@@ -11,7 +11,6 @@
 		A30C5CF426F332D600227E78 /* DDABTestTool.m in Sources */ = {isa = PBXBuildFile; fileRef = A30C5CE326F332D600227E78 /* DDABTestTool.m */; };
 		A30C5CF526F332D600227E78 /* DDStaticLibrary.m in Sources */ = {isa = PBXBuildFile; fileRef = A30C5CE426F332D600227E78 /* DDStaticLibrary.m */; };
 		A30C5CF626F332D600227E78 /* DDIRObjCClass.m in Sources */ = {isa = PBXBuildFile; fileRef = A30C5CE926F332D600227E78 /* DDIRObjCClass.m */; };
-		A30C5CF726F332D600227E78 /* DDIRUtil.mm in Sources */ = {isa = PBXBuildFile; fileRef = A30C5CEA26F332D600227E78 /* DDIRUtil.mm */; };
 		A30C5CF826F332D600227E78 /* DDIRStringVariable.m in Sources */ = {isa = PBXBuildFile; fileRef = A30C5CEB26F332D600227E78 /* DDIRStringVariable.m */; };
 		A30C5CF926F332D600227E78 /* DDIRGlobalVariable.m in Sources */ = {isa = PBXBuildFile; fileRef = A30C5CEC26F332D600227E78 /* DDIRGlobalVariable.m */; };
 		A30C5CFA26F332D600227E78 /* DDIRModule.mm in Sources */ = {isa = PBXBuildFile; fileRef = A30C5CED26F332D600227E78 /* DDIRModule.mm */; };
@@ -47,9 +46,7 @@
 		A30C5CE426F332D600227E78 /* DDStaticLibrary.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DDStaticLibrary.m; sourceTree = "<group>"; };
 		A30C5CE626F332D600227E78 /* DDIRFunction.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DDIRFunction.h; sourceTree = "<group>"; };
 		A30C5CE726F332D600227E78 /* DDIRGlobalVariable.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DDIRGlobalVariable.h; sourceTree = "<group>"; };
-		A30C5CE826F332D600227E78 /* DDIRUtil.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DDIRUtil.h; sourceTree = "<group>"; };
 		A30C5CE926F332D600227E78 /* DDIRObjCClass.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DDIRObjCClass.m; sourceTree = "<group>"; };
-		A30C5CEA26F332D600227E78 /* DDIRUtil.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = DDIRUtil.mm; sourceTree = "<group>"; };
 		A30C5CEB26F332D600227E78 /* DDIRStringVariable.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DDIRStringVariable.m; sourceTree = "<group>"; };
 		A30C5CEC26F332D600227E78 /* DDIRGlobalVariable.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DDIRGlobalVariable.m; sourceTree = "<group>"; };
 		A30C5CED26F332D600227E78 /* DDIRModule.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = DDIRModule.mm; sourceTree = "<group>"; };
@@ -145,8 +142,6 @@
 				A30C5CE926F332D600227E78 /* DDIRObjCClass.m */,
 				A30C5CF126F332D600227E78 /* DDIRStringVariable.h */,
 				A30C5CEB26F332D600227E78 /* DDIRStringVariable.m */,
-				A30C5CE826F332D600227E78 /* DDIRUtil.h */,
-				A30C5CEA26F332D600227E78 /* DDIRUtil.mm */,
 				A3EA896427756D380031835A /* DDIRChangeItem.h */,
 				A3EA896527756D380031835A /* DDIRChangeItem.mm */,
 				A3EA89672775A61E0031835A /* DDIRChangeItem+Perform.h */,
@@ -235,7 +230,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				A3EA896627756D380031835A /* DDIRChangeItem.mm in Sources */,
-				A30C5CF726F332D600227E78 /* DDIRUtil.mm in Sources */,
 				A30C5CF426F332D600227E78 /* DDABTestTool.m in Sources */,
 				A3E29F4927574837008FFF60 /* DDStaticLibrary+Merge.m in Sources */,
 				A30C5CF626F332D600227E78 /* DDIRObjCClass.m in Sources */,

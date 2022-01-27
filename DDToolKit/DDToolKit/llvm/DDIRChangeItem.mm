@@ -7,7 +7,6 @@
 
 #import "DDIRChangeItem.h"
 #import "DDIRChangeItem+Perform.h"
-#import "DDIRUtil.h"
 #include "DDIRUtil.hpp"
 
 using namespace llvm;
